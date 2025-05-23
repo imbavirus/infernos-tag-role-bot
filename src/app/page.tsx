@@ -1,128 +1,133 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React from 'react';
+import { useSession } from 'next-auth/react';
+import Link from 'next/link';
+import { FaDiscord, FaTag, FaUsers, FaShieldAlt } from 'react-icons/fa';
 
-interface GuildConfig {
-  id: string;
-  guildId: string;
-  representorsRoleId: string;
-  logChannelId: string | null;
-}
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 
 export default function Home() {
-  const [guilds, setGuilds] = useState<GuildConfig[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchGuilds();
-  }, []);
-
-  const fetchGuilds = async () => {
-    try {
-      const response = await fetch('/api/guilds');
-      const data = await response.json();
-      setGuilds(data);
-      setError(null);
-    } catch (err) {
-      setError('Failed to fetch guilds');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    
-    try {
-      const response = await fetch('/api/guilds', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          guildId: formData.get('guildId'),
-          representorsRoleId: formData.get('representorsRoleId'),
-          logChannelId: formData.get('logChannelId') || null,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update guild');
-      
-      await fetchGuilds();
-      e.currentTarget.reset();
-    } catch (err) {
-      setError('Failed to update guild');
-    }
-  };
-
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div className="text-red-500">{error}</div>;
+  const { data: session } = useSession();
 
   return (
-    <main className="min-h-screen p-8">
-      <h1 className="text-3xl font-bold mb-8">Guild Configuration</h1>
-      
-      <form onSubmit={handleSubmit} className="max-w-md mb-8">
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="guildId" className="block text-sm font-medium mb-1">
-              Guild ID
-            </label>
-            <input
-              type="text"
-              id="guildId"
-              name="guildId"
-              required
-              className="w-full p-2 border rounded"
-            />
+    <div className="flex flex-col min-h-screen bg-dark-darker">
+      {/* Hero Section */}
+      <section className="relative w-full py-24 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-lime/20 via-lime-dark/20 to-dark-darker/20" />
+        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
+        
+        <div className="relative max-w-[2000px] mx-auto px-2 sm:px-4 py-32">
+          <div className="text-center space-y-8">
+            <h1 className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-lime-light via-lime to-lime-dark animate-gradient leading-tight pb-2">
+              Infernos Tag Role Bot
+            </h1>
+            <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
+              Automatically manage roles based on server tags. Keep your community organized and roles up-to-date with ease.
+            </p>
+            <div className="pt-4">
+              <Link 
+                href={`https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=2415922176&scope=bot%20applications.commands`}
+                className="inline-flex items-center px-8 py-4 rounded-xl bg-gradient-to-r from-lime to-lime-dark hover:from-lime-light hover:to-lime transition-all duration-300 text-lg font-semibold shadow-lg shadow-lime/25 hover:shadow-lime/40 hover:scale-105"
+              >
+                <FaDiscord className="mr-3 text-xl" />
+                Add to Discord
+              </Link>
+            </div>
           </div>
-          
-          <div>
-            <label htmlFor="representorsRoleId" className="block text-sm font-medium mb-1">
-              Representors Role ID
-            </label>
-            <input
-              type="text"
-              id="representorsRoleId"
-              name="representorsRoleId"
-              required
-              className="w-full p-2 border rounded"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="logChannelId" className="block text-sm font-medium mb-1">
-              Log Channel ID (optional)
-            </label>
-            <input
-              type="text"
-              id="logChannelId"
-              name="logChannelId"
-              className="w-full p-2 border rounded"
-            />
-          </div>
-          
-          <button
-            type="submit"
-            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-          >
-            Save Configuration
-          </button>
         </div>
-      </form>
+      </section>
 
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Current Configurations</h2>
-        {guilds.map((guild) => (
-          <div key={guild.id} className="p-4 border rounded">
-            <p><strong>Guild ID:</strong> {guild.guildId}</p>
-            <p><strong>Representors Role ID:</strong> {guild.representorsRoleId}</p>
-            <p><strong>Log Channel ID:</strong> {guild.logChannelId || 'Not set'}</p>
+      {/* Features Section */}
+      <section className="w-full py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-4xl font-bold text-center mb-16 bg-clip-text text-transparent bg-gradient-to-r from-lime-light to-lime">
+            Features
+          </h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="bg-gradient-to-br from-dark-lighter to-dark p-8 rounded-2xl border border-lime/20 hover:border-lime/50 transition-all duration-300 hover:shadow-xl hover:shadow-lime/10 transform hover:-translate-y-1">
+              <div className="bg-gradient-to-br from-lime to-lime-dark p-3 rounded-xl w-fit mb-6">
+                <FaTag className="text-3xl" />
+              </div>
+              <h3 className="text-2xl font-semibold mb-4 text-lime-light">Server Tags</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Automatically sync roles based on server tags, keeping your community organized.
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-dark-lighter to-dark p-8 rounded-2xl border border-lime/20 hover:border-lime/50 transition-all duration-300 hover:shadow-xl hover:shadow-lime/10 transform hover:-translate-y-1">
+              <div className="bg-gradient-to-br from-lime to-lime-dark p-3 rounded-xl w-fit mb-6">
+                <FaUsers className="text-3xl" />
+              </div>
+              <h3 className="text-2xl font-semibold mb-4 text-lime-light">Member Management</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Effortlessly manage member roles across multiple servers with a single bot.
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-dark-lighter to-dark p-8 rounded-2xl border border-lime/20 hover:border-lime/50 transition-all duration-300 hover:shadow-xl hover:shadow-lime/10 transform hover:-translate-y-1">
+              <div className="bg-gradient-to-br from-lime to-lime-dark p-3 rounded-xl w-fit mb-6">
+                <FaShieldAlt className="text-3xl" />
+              </div>
+              <h3 className="text-2xl font-semibold mb-4 text-lime-light">Secure & Reliable</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Built with security in mind, ensuring your server's roles are always up-to-date.
+              </p>
+            </div>
           </div>
-        ))}
-      </div>
-    </main>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="w-full py-24 bg-dark-lighter/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-4xl font-bold text-center mb-16 bg-clip-text text-transparent bg-gradient-to-r from-lime-light to-lime">
+            How It Works
+          </h2>
+          <div className="max-w-3xl mx-auto">
+            <div className="space-y-16">
+              <div className="flex items-start group">
+                <div className="bg-gradient-to-br from-lime to-lime-dark rounded-full w-12 h-12 flex items-center justify-center flex-shrink-0 mt-1 shadow-lg shadow-lime/25 group-hover:shadow-lime/40 transition-all duration-300">
+                  <span className="text-xl font-bold">1</span>
+                </div>
+                <div className="ml-8">
+                  <h3 className="text-2xl font-semibold mb-4 text-lime-light">Add the Bot</h3>
+                  <p className="text-gray-300 leading-relaxed">
+                    Invite the bot to your server with the necessary permissions.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start group">
+                <div className="bg-gradient-to-br from-lime to-lime-dark rounded-full w-12 h-12 flex items-center justify-center flex-shrink-0 mt-1 shadow-lg shadow-lime/25 group-hover:shadow-lime/40 transition-all duration-300">
+                  <span className="text-xl font-bold">2</span>
+                </div>
+                <div className="ml-8">
+                  <h3 className="text-2xl font-semibold mb-4 text-lime-light">Configure Roles</h3>
+                  <p className="text-gray-300 leading-relaxed">
+                    Set up which roles should be assigned based on server tags.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start group">
+                <div className="bg-gradient-to-br from-lime to-lime-dark rounded-full w-12 h-12 flex items-center justify-center flex-shrink-0 mt-1 shadow-lg shadow-lime/25 group-hover:shadow-lime/40 transition-all duration-300">
+                  <span className="text-xl font-bold">3</span>
+                </div>
+                <div className="ml-8">
+                  <h3 className="text-2xl font-semibold mb-4 text-lime-light">Automatic Updates</h3>
+                  <p className="text-gray-300 leading-relaxed">
+                    The bot automatically manages roles as members join or leave servers.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="w-full py-12 mt-auto border-t border-lime/20 bg-dark-darker">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <p className="text-gray-300">© {new Date().getFullYear()} Infernos Tag Role Bot. All rights reserved.</p>
+        </div>
+      </footer>
+    </div>
   );
 } 
