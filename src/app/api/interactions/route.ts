@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { botService } from '@/services/bot';
 import crypto from 'crypto';
+import { logger } from '@/utils/logger';
 
 // Discord interaction types
 interface DiscordInteraction {
@@ -23,16 +24,16 @@ export async function POST(request: Request) {
   try {
     // Get the raw body for signature verification
     const rawBody = await request.text();
-    console.log('Received raw body:', rawBody);
+    logger.debug('Received raw body:', rawBody);
     
     const body = JSON.parse(rawBody) as DiscordInteraction;
-    console.log('Parsed body:', body);
+    logger.debug('Parsed body:', body);
     
     // Verify the request is from Discord
     const signature = request.headers.get('x-signature-ed25519');
     const timestamp = request.headers.get('x-signature-timestamp');
     
-    console.log('Headers:', {
+    logger.debug('Headers:', {
       signature,
       timestamp,
       'content-type': request.headers.get('content-type'),
@@ -40,29 +41,29 @@ export async function POST(request: Request) {
     });
     
     if (!signature || !timestamp) {
-      console.error('Missing signature or timestamp');
+      logger.error('Missing signature or timestamp');
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
     // For PING type (type 1), just return PONG (type 1)
     if (body.type === 1) {
-      console.log('Received PING, sending PONG');
+      logger.info('Received PING, sending PONG');
       return NextResponse.json({ type: 1 });
     }
 
     // For other types, verify the signature
     const isValid = verifyDiscordRequest(rawBody, signature, timestamp);
-    console.log('Signature verification result:', isValid);
+    logger.debug('Signature verification result:', isValid);
     
     if (!isValid) {
-      console.error('Invalid signature');
+      logger.error('Invalid signature');
       return new NextResponse('Invalid signature', { status: 401 });
     }
 
     // Handle different interaction types
     switch (body.type) {
       case 2: // APPLICATION_COMMAND
-        console.log('Received application command:', body.data?.name);
+        logger.info('Received application command:', body.data?.name);
         return NextResponse.json({ 
           type: 4, 
           data: { 
@@ -72,11 +73,11 @@ export async function POST(request: Request) {
         });
       
       default:
-        console.log('Unknown interaction type:', body.type);
+        logger.error('Unknown interaction type:', body.type);
         return NextResponse.json({ error: 'Unknown interaction type' }, { status: 400 });
     }
   } catch (error) {
-    console.error('Error handling interaction:', error);
+    logger.error('Error handling interaction:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -89,22 +90,22 @@ function verifyDiscordRequest(
   try {
     const publicKey = process.env.DISCORD_PUBLIC_KEY;
     if (!publicKey) {
-      console.error('DISCORD_PUBLIC_KEY is not set');
+      logger.error('DISCORD_PUBLIC_KEY is not set');
       return false;
     }
 
     // Validate input lengths
     if (signature.length !== 128) {
-      console.error('Invalid signature length:', signature.length);
+      logger.error('Invalid signature length:', signature.length);
       return false;
     }
 
     if (publicKey.length !== 64) {
-      console.error('Invalid public key length:', publicKey.length);
+      logger.error('Invalid public key length:', publicKey.length);
       return false;
     }
 
-    console.log('Verifying request with:', {
+    logger.debug('Verifying request with:', {
       publicKeyLength: publicKey.length,
       signatureLength: signature.length,
       timestamp,
@@ -123,10 +124,10 @@ function verifyDiscordRequest(
       messageBuffer
     );
 
-    console.log('Verification result:', result);
+    logger.debug('Verification result:', result);
     return result;
   } catch (error) {
-    console.error('Error verifying Discord request:', error);
+    logger.error('Error verifying Discord request:', error);
     return false;
   }
 } 
