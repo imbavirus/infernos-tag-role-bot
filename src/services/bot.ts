@@ -158,12 +158,16 @@ export class BotService {
     });
 
     this.client.on('guildMemberUpdate', (oldMember, newMember) => {
-      // Handle member updates
-      if (oldMember && newMember) {
-        const guildId = newMember.guild.id;
-        // Invalidate both guild and member caches
-        this.guildCache.delete(guildId);
-        this.memberCache.delete(guildId);
+      try {
+        // Only proceed if both members are defined and have a guild
+        if (oldMember?.guild && newMember?.guild) {
+          const guildId = newMember.guild.id;
+          // Invalidate both guild and member caches
+          this.guildCache.delete(guildId);
+          this.memberCache.delete(guildId);
+        }
+      } catch (error) {
+        console.error('Error in guildMemberUpdate handler:', error);
       }
     });
 
