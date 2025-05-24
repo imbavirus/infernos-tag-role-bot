@@ -7,19 +7,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaServer, FaChevronDown } from 'react-icons/fa';
 import ServerConfigForm from '../components/ServerConfigForm';
 import AddToDiscordButton from '@/components/AddToDiscordButton';
 import { Server } from '@/types/server';
 import ServerList from '@/components/ServerList';
-
-/**
- * Props for the DashboardPage component
- * @interface DashboardPageProps
- */
-interface DashboardPageProps {}
 
 /**
  * Represents a Discord role
@@ -37,11 +31,15 @@ interface Role {
 /**
  * Dashboard page component for managing server configurations
  * @component
- * @param {DashboardPageProps} props - Component props
  * @returns {JSX.Element} The dashboard page
  */
-export default function DashboardPage({}: DashboardPageProps) {
-  const { data: session, status } = useSession();
+export default function DashboardPage() {
+  const { data: session, status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.replace('/');
+    }
+  });
   const router = useRouter();
   const searchParams = useSearchParams();
   const [servers, setServers] = useState<Server[]>([]);
@@ -51,6 +49,8 @@ export default function DashboardPage({}: DashboardPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [lastFetch, setLastFetch] = useState<number>(0);
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   // Handle OAuth callback parameters
   useEffect(() => {
@@ -62,98 +62,60 @@ export default function DashboardPage({}: DashboardPageProps) {
       setError(error === 'no_code' ? 'Authorization failed' : 'Failed to add bot to server');
     } else if (success) {
       setSuccess('Bot successfully added to server!');
-      // If we have a guild ID, select that server
       if (guildId) {
         const server = servers.find(s => s.id === guildId);
         if (server) {
           setSelectedServer(server);
         }
       }
-      // Refresh the servers list by triggering a re-fetch
-      if (status === 'authenticated') {
-        fetch('/api/servers')
-          .then(response => response.json())
-          .then(data => {
-            setServers(data);
-            setError(null);
-          })
-          .catch(error => {
-            console.error('Error refreshing servers:', error);
-            setError('Failed to refresh server list');
-          });
+    }
+  }, [searchParams, servers]);
+
+  // Handle initial server selection from URL
+  useEffect(() => {
+    const guildId = searchParams.get('guild_id');
+    if (guildId && servers.length > 0 && !selectedServer) {
+      const server = servers.find(s => s.id === guildId);
+      if (server) {
+        setSelectedServer(server);
       }
     }
-  }, [searchParams, servers, status]);
-
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.replace('/');
-    }
-  }, [status, router]);
+  }, [searchParams, servers, selectedServer]);
 
   // Fetch user's servers
   useEffect(() => {
+    if (status === 'unauthenticated' as 'unauthenticated' | 'loading' | 'authenticated') {
+      router.push('/');
+      return;
+    }
+
     const fetchServers = async () => {
       try {
-        if (!session?.user?.accessToken) {
-          throw new Error('Authentication required. Please sign in again.');
+        // Check if we have cached data that's still valid
+        if (lastFetch && Date.now() - lastFetch < CACHE_DURATION) {
+          return;
         }
-        
-        const response = await fetch('/api/servers', {
-          headers: {
-            'Authorization': `Bearer ${session.user.accessToken}`
-          }
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Server fetch error response:', errorData);
-          
-          if (response.status === 503) {
-            throw new Error('Bot is not ready. Please try again in a few moments.');
-          }
-          if (response.status === 429) {
-            throw new Error('Discord API rate limit reached. Please try again in a few moments.');
-          }
-          if (response.status === 401) {
-            if (session?.error === 'RefreshAccessTokenError') {
-              router.replace('/auth/signin');
-              return;
-            }
-            
-            // Try to refresh the session first
-            router.refresh();
-            
-            // If we still get a 401 after refresh, redirect to sign in
-            setTimeout(() => {
-              if (status === 'unauthenticated' as 'loading' | 'authenticated' | 'unauthenticated') {
-                router.replace('/auth/signin');
-              }
-            }, 1000);
-            
-            throw new Error('Session expired. Please try again.');
-          }
-          throw new Error(errorData.error || 'Failed to fetch servers');
-        }
-        
-        const data = await response.json();
-        setServers(data);
+
+        setIsLoading(true);
         setError(null);
 
-        // Check for guild_id in URL and select the corresponding server
-        const guildId = searchParams.get('guild_id');
-        if (guildId) {
-          const server = data.find((s: Server) => s.id === guildId);
-          if (server) {
-            setSelectedServer(server);
+        const response = await fetch('/api/servers');
+        
+        if (!response.ok) {
+          if (response.status === 401) {
+            await signOut({ redirect: false });
+            router.push('/');
+            return;
           }
+          throw new Error(`Failed to fetch servers: ${response.status}`);
         }
-      } catch (error) {
-        console.error('Error fetching servers:', error);
-        setError(error instanceof Error ? error.message : 'Failed to fetch servers');
-        // Reset loading state after a delay to prevent UI from getting stuck
-        setTimeout(() => setIsLoading(false), 2000);
+
+        const data = await response.json();
+        setServers(data);
+        setLastFetch(Date.now());
+      } catch (err) {
+        console.error('Error fetching servers:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch servers');
       } finally {
         setIsLoading(false);
       }
@@ -161,41 +123,8 @@ export default function DashboardPage({}: DashboardPageProps) {
 
     if (status === 'authenticated') {
       fetchServers();
-    } else if (status === 'unauthenticated') {
-      router.replace('/');
-    } else {
-      setIsLoading(false);
     }
-  }, [status, session, searchParams, router]);
-
-  // Add a timeout to prevent infinite loading
-  useEffect(() => {
-    const loadingTimeout = setTimeout(() => {
-      if (isLoading) {
-        setIsLoading(false);
-        setError('Request timed out. Please try again.');
-      }
-    }, 15000); // Reduced from 30s to 15s to match bot initialization timeout
-
-    return () => clearTimeout(loadingTimeout);
-  }, [isLoading]);
-
-  // Add error boundary effect
-  useEffect(() => {
-    const handleError = (error: Error) => {
-      console.error('Unhandled error:', error);
-      setIsLoading(false);
-      setError('An unexpected error occurred. Please try again.');
-    };
-
-    window.addEventListener('error', (event) => handleError(event.error));
-    window.addEventListener('unhandledrejection', (event) => handleError(event.reason));
-
-    return () => {
-      window.removeEventListener('error', (event) => handleError(event.error));
-      window.removeEventListener('unhandledrejection', (event) => handleError(event.reason));
-    };
-  }, []);
+  }, [status, router, lastFetch]);
 
   // Fetch roles when server is selected
   useEffect(() => {
@@ -253,11 +182,6 @@ export default function DashboardPage({}: DashboardPageProps) {
         </div>
       </div>
     );
-  }
-
-  // Don't render anything if not authenticated (will redirect)
-  if (status === 'unauthenticated') {
-    return null;
   }
 
   return (
@@ -336,9 +260,19 @@ export default function DashboardPage({}: DashboardPageProps) {
                 ) : (
                   servers
                     .sort((a, b) => {
-                      // Sort servers with bot to the top
-                      if (a.hasBot && !b.hasBot) return -1;
-                      if (!a.hasBot && b.hasBot) return 1;
+                      // First tier: Servers with bot and tags feature
+                      if (a.hasBot && a.hasTagsFeature && !(b.hasBot && b.hasTagsFeature)) return -1;
+                      if (!(a.hasBot && a.hasTagsFeature) && b.hasBot && b.hasTagsFeature) return 1;
+                      
+                      // Second tier: Servers with bot but no tags feature
+                      if (a.hasBot && !a.hasTagsFeature && !(b.hasBot && !b.hasTagsFeature)) return -1;
+                      if (!(a.hasBot && !a.hasTagsFeature) && b.hasBot && !b.hasTagsFeature) return 1;
+                      
+                      // Third tier: Servers without bot
+                      if (!a.hasBot && b.hasBot) return -1;
+                      if (a.hasBot && !b.hasBot) return 1;
+                      
+                      // Within each tier, sort alphabetically
                       return a.name.localeCompare(b.name);
                     })
                     .map((server) => (
@@ -388,6 +322,22 @@ export default function DashboardPage({}: DashboardPageProps) {
               <div className="flex justify-center">
                 <AddToDiscordButton size="md" guildId={selectedServer.id} />
               </div>
+            </div>
+          )}
+
+          {selectedServer && selectedServer.hasBot && !selectedServer.hasTagsFeature && (
+            <div className="mb-8 p-6 bg-dark rounded-lg border border-lime/20 text-center">
+              <h3 className="text-xl font-semibold text-lime-light mb-4">Server Tags Feature Required</h3>
+              <p className="text-gray-400 mb-2">This server does not have the Server Tags feature enabled.</p>
+              <p className="text-gray-400 mb-2 flex items-center justify-center gap-2">
+                <span>Please enable it in your server settings to use this bot.</span>
+              </p>
+              <p className="text-gray-400 mb-6 flex items-center justify-center gap-2">
+                <span className="flex items-center gap-1">
+                  <span>Costs 3 server boosts</span>
+                  <img src="/discord-boost.png" alt="Discord Boost" className="w-4 h-4" />
+                </span>
+              </p>
             </div>
           )}
 

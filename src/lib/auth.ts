@@ -123,7 +123,6 @@ export const authOptions: NextAuthOptions = {
      * @returns {Promise<Object>} The modified token
      */
     async jwt({ token, account, profile }) {
-      // Initial sign in
       if (account) {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
@@ -132,12 +131,10 @@ export const authOptions: NextAuthOptions = {
         return token;
       }
 
-      // Return previous token if the access token has not expired yet
       if (token.expiresAt && Date.now() < token.expiresAt * 1000) {
         return token;
       }
 
-      // Access token has expired, try to refresh it
       try {
         const response = await fetch('https://discord.com/api/oauth2/token', {
           method: 'POST',
@@ -155,7 +152,6 @@ export const authOptions: NextAuthOptions = {
         const tokens = await response.json();
 
         if (!response.ok) {
-          console.error('Token refresh failed:', tokens);
           return { ...token, error: 'RefreshAccessTokenError' };
         }
 
@@ -168,7 +164,6 @@ export const authOptions: NextAuthOptions = {
           error: undefined,
         };
       } catch (error) {
-        console.error('Error refreshing access token:', error);
         return { ...token, error: 'RefreshAccessTokenError' };
       }
     },
@@ -203,29 +198,21 @@ export const authOptions: NextAuthOptions = {
     },
     async redirect({ url, baseUrl }) {
       try {
-        // Handle relative URLs by combining with baseUrl
         const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
         const urlObj = new URL(fullUrl);
         const error = urlObj.searchParams.get('error');
         const guildId = urlObj.searchParams.get('guild_id');
         
-        console.log('Redirect URL:', fullUrl); // Debug log
-        console.log('Guild ID from URL:', guildId); // Debug log
-        
         if (error) {
-          console.error('OAuth error:', error);
           return `${baseUrl}/auth/error?error=${error}`;
         }
 
-        // If we have a guild_id in the URL, use it directly
         if (guildId) {
           return `${baseUrl}/dashboard?guild_id=${guildId}`;
         }
 
-        // Default redirect to dashboard
         return `${baseUrl}/dashboard`;
       } catch (error) {
-        console.error('Error in redirect callback:', error);
         return `${baseUrl}/dashboard`;
       }
     },
@@ -234,5 +221,45 @@ export const authOptions: NextAuthOptions = {
     signIn: '/auth/signin',
     error: '/auth/error',
   },
-  debug: isDevelopment,
-}; 
+  debug: false,
+};
+
+async function login() {
+  let retries = 0;
+  const maxRetries = 3;
+  const baseDelay = 1000;
+
+  while (retries < maxRetries) {
+    try {
+      const response = await fetch('/api/bot/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        return true;
+      }
+
+      const data = await response.json();
+      if (data.error === 'Bot is already logged in') {
+        return true;
+      }
+
+      retries++;
+      if (retries < maxRetries) {
+        const delay = baseDelay * Math.pow(2, retries - 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    } catch (error) {
+      retries++;
+      if (retries < maxRetries) {
+        const delay = baseDelay * Math.pow(2, retries - 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw new Error('Failed to login after multiple attempts');
+} 

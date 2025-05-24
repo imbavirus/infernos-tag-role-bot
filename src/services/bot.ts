@@ -52,15 +52,15 @@ interface GuildConfig {
  * Service class for managing the Discord bot
  * @class BotService
  */
-class BotService {
-  public client: Client;
+export class BotService {
+  private client: Client;
   private processingPromise: Promise<void> | null = null;
   private readyPromise: Promise<void>;
   private readyResolve: (() => void) | null = null;
   private readyReject: ((error: Error) => void) | null = null;
-  private readonly LOGIN_TIMEOUT = 30000; // Reduced to 30 seconds
+  private readonly LOGIN_TIMEOUT = 30000; // 30 seconds
   private readonly MAX_RETRIES = 3;
-  private readonly RETRY_DELAY = 2000; // Reduced to 2 seconds
+  private readonly RETRY_DELAY = 2000; // 2 seconds
   private tokenVerificationCache: {
     isValid: boolean;
     timestamp: number;
@@ -70,6 +70,25 @@ class BotService {
   private lastHeartbeat: number = 0;
   private readonly HEARTBEAT_INTERVAL = 60000; // 1 minute
   private readonly HEARTBEAT_DEBOUNCE = 5000; // 5 seconds
+  private initializationError: Error | null = null;
+  private lastInitializationAttempt: number = 0;
+  private readonly INITIALIZATION_COOLDOWN = 5000; // 5 seconds
+
+  // Add rate limit handling
+  private rateLimitCache = new Map<string, {
+    resetAt: number;
+    remaining: number;
+  }>();
+
+  // Add caching
+  private guildCache = new Map<string, {
+    data: Guild;
+    timestamp: number;
+  }>();
+  private memberCache = new Map<string, {
+    data: GuildMember[];
+    timestamp: number;
+  }>();
 
   /**
    * Creates a new instance of BotService
@@ -82,7 +101,7 @@ class BotService {
         GatewayIntentBits.GuildMembers,
       ],
       rest: {
-        timeout: 15000, // Reduced to 15 seconds
+        timeout: 15000, // 15 seconds
       }
     });
 
@@ -489,6 +508,11 @@ class BotService {
    * @returns {Promise<void>}
    */
   public async start() {
+    // If we have a recent initialization error, don't try to start again immediately
+    if (this.initializationError && Date.now() - this.lastInitializationAttempt < this.INITIALIZATION_COOLDOWN) {
+      throw this.initializationError;
+    }
+
     if (this.isInitializing) {
       return this.readyPromise;
     }
@@ -498,9 +522,14 @@ class BotService {
     }
 
     this.isInitializing = true;
+    this.lastInitializationAttempt = Date.now();
+    this.initializationError = null;
+
     const token = process.env.DISCORD_TOKEN;
     if (!token) {
-      throw new Error('Discord bot token not found');
+      this.isInitializing = false;
+      this.initializationError = new Error('Discord bot token not found');
+      throw this.initializationError;
     }
 
     try {
@@ -510,7 +539,7 @@ class BotService {
       await Promise.race([
         this.readyPromise,
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Bot initialization timed out')), this.LOGIN_TIMEOUT)
+          setTimeout(() => reject(new Error('Bot initialization timed out. Please try again in a few moments.')), this.LOGIN_TIMEOUT)
         )
       ]);
 
@@ -526,8 +555,9 @@ class BotService {
       return Promise.resolve();
     } catch (error) {
       this.isInitializing = false;
-      console.error('Failed to start bot:', error);
-      throw error;
+      this.initializationError = error instanceof Error ? error : new Error('Unknown error during bot initialization');
+      console.error('Failed to start bot:', this.initializationError);
+      throw this.initializationError;
     }
   }
 
@@ -536,7 +566,103 @@ class BotService {
    * @returns {boolean} Whether the bot is logged in
    */
   public isLoggedIn(): boolean {
-    return this.client.isReady();
+    return this.client.isReady() && !this.initializationError;
+  }
+
+  // Update fetchGuilds method
+  async fetchGuilds(): Promise<Guild[]> {
+    if (!this.client.isReady()) {
+      throw new Error('Bot is not ready');
+    }
+
+    try {
+      const guilds = await this.client.guilds.fetch();
+      const guildArray = await Promise.all(
+        Array.from(guilds.values()).map(guild => guild.fetch())
+      );
+      
+      // Cache guild data
+      this.guildCache = new Map(
+        guildArray.map(guild => [
+          guild.id,
+          {
+            data: guild,
+            timestamp: Date.now()
+          }
+        ])
+      );
+
+      return guildArray;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('rate limit')) {
+        const endpoint = 'guilds';
+        const cached = this.rateLimitCache.get(endpoint);
+        if (cached && cached.resetAt > Date.now()) {
+          await new Promise(resolve => setTimeout(resolve, cached.resetAt - Date.now()));
+          return this.fetchGuilds();
+        }
+      }
+      throw error;
+    }
+  }
+
+  // Update fetchGuild method
+  async fetchGuild(guildId: string): Promise<Guild | null> {
+    if (!this.client.isReady()) {
+      throw new Error('Bot is not ready');
+    }
+
+    try {
+      const guild = await this.client.guilds.fetch(guildId);
+      
+      // Cache guild data
+      this.guildCache.set(guildId, {
+        data: guild,
+        timestamp: Date.now()
+      });
+
+      return guild;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('rate limit')) {
+        const endpoint = `guilds/${guildId}`;
+        const cached = this.rateLimitCache.get(endpoint);
+        if (cached && cached.resetAt > Date.now()) {
+          await new Promise(resolve => setTimeout(resolve, cached.resetAt - Date.now()));
+          return this.fetchGuild(guildId);
+        }
+      }
+      return null;
+    }
+  }
+
+  // Update fetchGuildMembers method
+  async fetchGuildMembers(guildId: string): Promise<GuildMember[]> {
+    if (!this.client.isReady()) {
+      throw new Error('Bot is not ready');
+    }
+
+    try {
+      const guild = await this.client.guilds.fetch(guildId);
+      const members = await guild.members.fetch();
+      
+      // Cache member data
+      this.memberCache.set(guildId, {
+        data: Array.from(members.values()),
+        timestamp: Date.now()
+      });
+
+      return Array.from(members.values());
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('rate limit')) {
+        const endpoint = `guilds/${guildId}/members`;
+        const cached = this.rateLimitCache.get(endpoint);
+        if (cached && cached.resetAt > Date.now()) {
+          await new Promise(resolve => setTimeout(resolve, cached.resetAt - Date.now()));
+          return this.fetchGuildMembers(guildId);
+        }
+      }
+      throw error;
+    }
   }
 }
 

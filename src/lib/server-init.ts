@@ -10,6 +10,8 @@ let botStartPromise: Promise<void> | null = null;
 let lastError: Error | null = null;
 let lastErrorTime: number = 0;
 const ERROR_CACHE_DURATION = 5000; // 5 seconds
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000; // 2 seconds
 
 /**
  * Initializes the server-side environment
@@ -55,7 +57,16 @@ export async function ensureBotStarted() {
         throw error;
       });
   }
-  return botStartPromise;
+
+  try {
+    await botStartPromise;
+  } catch (error) {
+    // If the bot is already logged in despite the error, we can proceed
+    if (botService.isLoggedIn()) {
+      return;
+    }
+    throw error;
+  }
 }
 
 // Start the bot immediately when this module is loaded

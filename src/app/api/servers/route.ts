@@ -11,6 +11,13 @@ import { botService } from '@/services/bot';
 import { ensureBotStarted } from '@/lib/server-init';
 import { Session } from 'next-auth';
 
+// Cache for guild data
+const guildCache = new Map<string, {
+  data: any;
+  timestamp: number;
+}>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Represents a Discord guild (server)
  * @interface Guild
@@ -26,6 +33,46 @@ interface Guild {
   permissions: string;
   hasBot?: boolean;
   features?: string[];
+  hasTagsFeature?: boolean;
+}
+
+/**
+ * Fetches user's guilds from Discord API with caching
+ * @param {string} accessToken - User's access token
+ * @returns {Promise<Guild[]>} Array of guilds
+ */
+async function fetchUserGuilds(accessToken: string): Promise<Guild[]> {
+  const cacheKey = `guilds_${accessToken}`;
+  const cached = guildCache.get(cacheKey);
+  
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+
+  const response = await fetch('https://discord.com/api/users/@me/guilds', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After');
+      const delay = retryAfter ? parseInt(retryAfter) * 1000 : 5000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return fetchUserGuilds(accessToken);
+    }
+    throw new Error(`Failed to fetch servers: ${response.status} ${response.statusText}`);
+  }
+
+  const guilds = await response.json() as Guild[];
+  guildCache.set(cacheKey, {
+    data: guilds,
+    timestamp: Date.now()
+  });
+
+  return guilds;
 }
 
 /**
@@ -50,8 +97,8 @@ export async function GET() {
     try {
       await Promise.race([
         ensureBotStarted(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Bot initialization timed out')), 10000)
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Bot initialization timed out. Please try again in a few moments.')), 15000)
         )
       ]);
       
@@ -84,82 +131,32 @@ export async function GET() {
     const botGuilds = botService.getGuilds();
     const botGuildIds = new Set(botGuilds.map(guild => guild.id));
 
-    // Fetch user's guilds from Discord API with retry logic
-    let retries = 0;
-    const maxRetries = 3;
-    let lastError;
+    // Fetch user's guilds with caching
+    const guilds = await fetchUserGuilds(accessToken);
 
-    while (retries < maxRetries) {
-      try {
-        const response = await fetch('https://discord.com/api/users/@me/guilds', {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        });
+    // Filter guilds where the user has ADMINISTRATOR permission and bot is present
+    const managedGuilds = guilds.filter((guild: Guild) => {
+      const permissions = BigInt(guild.permissions);
+      const ADMINISTRATOR = BigInt(0x8);
+      const isAdmin = (permissions & ADMINISTRATOR) === ADMINISTRATOR;
+      const hasBot = botGuildIds.has(guild.id);
+      
+      // Add bot presence info to the guild object
+      guild.hasBot = hasBot;
+      
+      // Add hasTagsFeature property
+      guild.hasTagsFeature = guild.features?.includes('GUILD_TAGS') || false;
+      
+      return isAdmin;
+    });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Discord API error:', {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorText
-          });
-          
-          if (response.status === 401) {
-            return NextResponse.json({ error: 'Unauthorized - Please sign in again' }, { status: 401 });
-          }
-          
-          if (response.status === 429) {
-            const retryAfter = response.headers.get('Retry-After');
-            const delay = retryAfter ? parseInt(retryAfter) * 1000 : 5000;
-            await new Promise(resolve => setTimeout(resolve, delay));
-            retries++;
-            continue;
-          }
-          
-          throw new Error(`Failed to fetch servers: ${response.status} ${response.statusText}`);
-        }
-
-        const guilds = await response.json() as Guild[];
-
-        // Filter guilds where the user has ADMINISTRATOR permission and bot is present
-        const managedGuilds = guilds.filter((guild: Guild) => {
-          const permissions = BigInt(guild.permissions);
-          const ADMINISTRATOR = BigInt(0x8);
-          const isAdmin = (permissions & ADMINISTRATOR) === ADMINISTRATOR;
-          const hasBot = botGuildIds.has(guild.id);
-          
-          // Add bot presence info to the guild object
-          guild.hasBot = hasBot;
-          
-          return isAdmin;
-        });
-
-        // Add hasTagsFeature to each guild
-        const guildsWithFeatures = managedGuilds.map(guild => ({
-          ...guild,
-          hasTagsFeature: guild.features?.includes('GUILD_TAGS') || false
-        }));
-
-        return NextResponse.json(guildsWithFeatures);
-      } catch (error) {
-        lastError = error;
-        retries++;
-        if (retries < maxRetries) {
-          const delay = 1000 * Math.pow(2, retries);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      }
-    }
-
-    throw lastError || new Error('Failed to fetch servers after multiple retries');
+    return NextResponse.json(managedGuilds);
   } catch (error) {
-    console.error('Error in server API:', error);
-    return NextResponse.json({ 
-      error: 'Internal Server Error',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    console.error('Error fetching servers:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch servers' },
+      { status: 500 }
+    );
   }
 }
 

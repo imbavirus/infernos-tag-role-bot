@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { FaUserTag, FaHashtag } from 'react-icons/fa';
 import { Server } from '@/types/server';
 
@@ -150,6 +150,10 @@ export default function ServerConfigForm({ server, hasTagsFeature = false }: Ser
       const response = await fetch(`/api/servers/${server.id}/roles`);
       if (!response.ok) {
         const data = await response.json();
+        if (response.status === 401) {
+          signOut({ callbackUrl: '/' });
+          return;
+        }
         // Only set error for unexpected errors
         if (response.status !== 404 && response.status !== 503) {
           throw new Error(data.error || 'Failed to fetch roles');
@@ -183,7 +187,14 @@ export default function ServerConfigForm({ server, hasTagsFeature = false }: Ser
     try {
       setIsLoadingChannels(true);
       const response = await fetch(`/api/servers/${server.id}/channels`);
-      if (!response.ok) throw new Error('Failed to fetch channels');
+      if (!response.ok) {
+        const data = await response.json();
+        if (response.status === 401) {
+          signOut({ callbackUrl: '/' });
+          return;
+        }
+        throw new Error(data.error || 'Failed to fetch channels');
+      }
       const data = await response.json();
       setChannels(data);
     } catch (error) {
@@ -204,13 +215,18 @@ export default function ServerConfigForm({ server, hasTagsFeature = false }: Ser
     try {
       const response = await fetch(`/api/guilds/${server.id}`);
       if (!response.ok) {
+        const data = await response.json();
+        if (response.status === 401) {
+          signOut({ callbackUrl: '/' });
+          return;
+        }
         if (response.status === 404) {
           // Configuration doesn't exist yet, which is fine
           setSelectedRole('');
           setSelectedChannel('');
           return;
         }
-        throw new Error('Failed to fetch configuration');
+        throw new Error(data.error || 'Failed to fetch configuration');
       }
       const data = await response.json();
       // Handle both null and undefined cases
@@ -258,6 +274,10 @@ export default function ServerConfigForm({ server, hasTagsFeature = false }: Ser
 
       if (!response.ok) {
         const data = await response.json();
+        if (response.status === 401) {
+          signOut({ callbackUrl: '/' });
+          return;
+        }
         throw new Error(data.error || 'Failed to save configuration');
       }
 
@@ -280,11 +300,6 @@ export default function ServerConfigForm({ server, hasTagsFeature = false }: Ser
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {server.hasBot && !hasTagsFeature && (
-        <div className="text-yellow-400 text-sm bg-yellow-900/20 border border-yellow-900/40 rounded-lg p-3">
-          This server does not have the Server Tags feature enabled. Please enable it in your server settings to use this bot.
-        </div>
-      )}
 
       {hasTagsFeature && (
         <>
