@@ -13,6 +13,14 @@ import { FaTag, FaUsers, FaShieldAlt } from 'react-icons/fa';
 import AddToDiscordButton from '@/components/AddToDiscordButton';
 
 /**
+ * Checks if email settings are configured
+ * @returns {boolean} Whether email settings are configured
+ */
+const isEmailConfigured = () => {
+  return process.env.NEXT_PUBLIC_ENABLE_EMAIL === 'true';
+};
+
+/**
  * Home page component that displays the landing page with features and how it works sections
  * @returns {JSX.Element} The landing page
  */
@@ -126,6 +134,11 @@ export default function Home() {
             <Link href="/privacy" className="text-gray-400 hover:text-lime transition-colors">
               Privacy Policy
             </Link>
+            {isEmailConfigured() && (
+              <Link href="/support" className="text-gray-400 hover:text-lime transition-colors">
+                Support
+              </Link>
+            )}
           </div>
         </div>
       </footer>
