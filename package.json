@@ -19,6 +19,7 @@
     "@discordjs/opus": "^0.10.0",
     "@discordjs/voice": "^0.18.0",
     "@prisma/client": "^6.8.2",
+    "@tailwindcss/postcss": "^4.1.7",
     "discord.js": "14.19.3",
     "libsodium-wrappers": "^0.7.15",
     "next": "15.3.2",
