@@ -42,13 +42,22 @@ export async function POST(request: Request) {
     
     if (!signature || !timestamp) {
       logger.error('Missing signature or timestamp');
-      return new NextResponse('Unauthorized', { status: 401 });
+      return new NextResponse('Unauthorized', { 
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
     }
 
     // For PING type (type 1), just return PONG (type 1)
     if (body.type === 1) {
       logger.info('Received PING, sending PONG');
-      return NextResponse.json({ type: 1 });
+      return NextResponse.json({ type: 1 }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
     }
 
     // For other types, verify the signature
@@ -57,7 +66,12 @@ export async function POST(request: Request) {
     
     if (!isValid) {
       logger.error('Invalid signature');
-      return new NextResponse('Invalid signature', { status: 401 });
+      return new NextResponse('Invalid signature', { 
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
     }
 
     // Handle different interaction types
