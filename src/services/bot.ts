@@ -146,6 +146,27 @@ export class BotService {
       console.warn('[WARN]', message);
     });
 
+    this.client.on('channelUpdate', (oldChannel, newChannel) => {
+      // Handle channel updates
+      if (oldChannel && newChannel && 'guild' in newChannel) {
+        // Update channel cache if needed
+        const guildId = newChannel.guild.id;
+        if (guildId) {
+          this.guildCache.delete(guildId);
+        }
+      }
+    });
+
+    this.client.on('guildMemberUpdate', (oldMember, newMember) => {
+      // Handle member updates
+      if (oldMember && newMember) {
+        const guildId = newMember.guild.id;
+        // Invalidate both guild and member caches
+        this.guildCache.delete(guildId);
+        this.memberCache.delete(guildId);
+      }
+    });
+
     this.client.on('shardReady', (shardId) => {
       console.log(`Shard ${shardId} is ready`);
       this.sendHeartbeat();
