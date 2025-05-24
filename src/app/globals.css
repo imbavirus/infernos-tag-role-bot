@@ -3,6 +3,19 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer theme {
+  :root {
+    --color-discord: #5865F2;
+    --color-discord-dark: #4752C4;
+    --color-lime-light: #84cc16;
+    --color-lime-DEFAULT: #65a30d;
+    --color-lime-dark: #4d7c0f;
+    --color-dark-lighter: #1f2937;
+    --color-dark-DEFAULT: #111827;
+    --color-dark-darker: #0f172a;
+  }
+}
+
 @layer utilities {
   .custom-scrollbar {
     scrollbar-width: thin;
