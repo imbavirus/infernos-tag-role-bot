@@ -14,9 +14,19 @@ export default function NavBar() {
   const handleSignIn = async () => {
     try {
       console.log('Attempting to sign in...');
+      // Get guild_id from URL if present
+      const urlParams = new URLSearchParams(window.location.search);
+      const guildId = urlParams.get('guild_id');
+      
       const result = await signIn('discord', { 
-        callbackUrl: '/',
-        redirect: true
+        callbackUrl: `/dashboard${guildId ? `?guild_id=${guildId}` : ''}`,
+        redirect: true,
+        scope: 'identify email guilds bot applications.commands',
+        permissions: '2415922176',
+        prompt: 'consent',
+        access_type: 'offline',
+        response_type: 'code',
+        state: guildId ? `guild_id=${guildId}` : undefined
       });
       console.log('Sign in result:', result);
     } catch (error) {
@@ -46,7 +56,9 @@ export default function NavBar() {
             </Link>
           </div>
           <div className="flex items-center gap-2 pr-2">
-            {status === 'authenticated' && session?.user ? (
+            {status === 'loading' ? (
+              <div className="w-24 h-8 bg-dark/50 rounded-lg animate-pulse" />
+            ) : status === 'authenticated' && session?.user ? (
               <>
                 <div className="relative" ref={dropdownRef}>
                   <button
@@ -76,13 +88,17 @@ export default function NavBar() {
                     <div className="absolute right-0 mt-2 w-48 rounded-lg bg-dark-lighter border border-lime/20 shadow-lg shadow-lime/25 overflow-hidden z-50">
                       <Link
                         href="/dashboard"
+                        onClick={() => setIsDropdownOpen(false)}
                         className="flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-dark hover:text-lime-light transition-colors duration-200"
                       >
                         <FaTachometerAlt className="text-lime-light" />
                         Dashboard
                       </Link>
                       <button
-                        onClick={() => signOut()}
+                        onClick={() => {
+                          setIsDropdownOpen(false);
+                          signOut();
+                        }}
                         className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-300 hover:bg-dark hover:text-lime-light transition-colors duration-200"
                       >
                         <FaSignOutAlt className="text-lime-light" />

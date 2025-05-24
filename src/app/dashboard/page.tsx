@@ -95,6 +95,15 @@ export default function Dashboard() {
         console.log('Server data received:', data);
         setServers(data);
         setError(null);
+
+        // Check for guild_id in URL and select the corresponding server
+        const guildId = searchParams.get('guild_id');
+        if (guildId) {
+          const server = data.find((s: Server) => s.id === guildId);
+          if (server) {
+            setSelectedServer(server);
+          }
+        }
       } catch (error) {
         console.error('Error fetching servers:', error);
         setError(error instanceof Error ? error.message : 'Failed to fetch servers');
@@ -111,7 +120,7 @@ export default function Dashboard() {
       console.log('User authentication status:', status);
       setIsLoading(false);
     }
-  }, [status, session]);
+  }, [status, session, searchParams]);
 
   // Fetch roles when server is selected
   useEffect(() => {
@@ -136,7 +145,6 @@ export default function Dashboard() {
     fetchRoles();
   }, [selectedServer]);
 
-  // Show loading state while checking authentication
   if (status === 'loading' || isLoading) {
     return (
       <div className="min-h-screen bg-dark-darker flex items-center justify-center">
@@ -145,7 +153,6 @@ export default function Dashboard() {
     );
   }
 
-  // Show error state if there's an error
   if (error) {
     return (
       <div className="min-h-screen bg-dark-darker flex items-center justify-center">
@@ -230,6 +237,8 @@ export default function Dashboard() {
                       onClick={() => {
                         setSelectedServer(server);
                         setIsServerDropdownOpen(false);
+                        // Update URL with guild_id
+                        router.push(`/dashboard?guild_id=${server.id}`, { scroll: false });
                       }}
                       className={`flex items-center gap-3 w-full px-4 py-3 hover:bg-dark-lighter transition-colors duration-200 ${
                         !server.hasBot ? 'opacity-50' : ''

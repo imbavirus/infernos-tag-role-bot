@@ -195,16 +195,19 @@ export default function ServerConfigForm({ serverId, hasTagsFeature = false }: S
             </select>
           </div>
 
-          <div className="space-y-2">
-            <label htmlFor="channelId" className="block text-sm font-medium text-gray-200">
-              Channel
+          <div>
+            <label htmlFor="channelId" className="block text-sm font-medium text-lime-light mb-2">
+              <div className="flex items-center gap-2">
+                <FaHashtag className="text-lime" />
+                Select Channel
+              </div>
             </label>
             <select
               id="channelId"
               name="channelId"
               value={selectedChannel}
               onChange={(e) => setSelectedChannel(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-700 bg-gray-800 text-white shadow-sm focus:border-lime-500 focus:ring-lime-500 sm:text-sm"
+              className="w-full bg-dark border border-lime/20 rounded-lg px-4 py-2 text-gray-300 focus:outline-none focus:border-lime/40 focus:ring-1 focus:ring-lime/40"
             >
               <option value="">Select a channel</option>
               { (!!channels ? channels : [])

@@ -60,6 +60,6 @@ export async function GET(
     return NextResponse.json(rolesArray);
   } catch (error) {
     console.error('Error fetching roles:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 } 

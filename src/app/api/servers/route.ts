@@ -20,7 +20,7 @@ export async function GET() {
 
     if (!session) {
       console.log('No session found');
-      return new NextResponse('Unauthorized', { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Ensure bot is started and ready
@@ -43,12 +43,12 @@ export async function GET() {
 
       if (!botService.isLoggedIn()) {
         console.log('Bot is not logged in after retries');
-        return new NextResponse('Bot is not ready', { status: 503 });
+        return NextResponse.json({ error: 'Bot is not ready' }, { status: 503 });
       }
       console.log('Bot is ready');
     } catch (error) {
       console.error('Failed to start bot:', error);
-      return new NextResponse('Bot is not ready', { status: 503 });
+      return NextResponse.json({ error: 'Bot is not ready' }, { status: 503 });
     }
 
     // Get bot's guilds
@@ -96,6 +96,6 @@ export async function GET() {
     return NextResponse.json(guildsWithFeatures);
   } catch (error) {
     console.error('Error in server API:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 } 
