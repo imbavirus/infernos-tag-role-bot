@@ -5,21 +5,21 @@
 
 @layer theme {
   :root {
-    --color-discord: oklch(55.4% 0.2 265.1);
-    --color-discord-dark: oklch(48.2% 0.2 265.1);
-    --color-lime-light: oklch(79.2% 0.209 151.711);
-    --color-lime-DEFAULT: oklch(72.3% 0.219 149.579);
-    --color-lime-dark: oklch(65.4% 0.229 147.447);
-    --color-dark-lighter: oklch(37.3% 0.034 259.733);
-    --color-dark-DEFAULT: oklch(27.8% 0.033 256.848);
-    --color-dark-darker: oklch(21% 0.034 264.665);
+    --tw-color-discord: oklch(55.4% 0.2 265.1);
+    --tw-color-discord-dark: oklch(48.2% 0.2 265.1);
+    --tw-color-lime-light: oklch(79.2% 0.209 151.711);
+    --tw-color-lime: oklch(72.3% 0.219 149.579);
+    --tw-color-lime-dark: oklch(65.4% 0.229 147.447);
+    --tw-color-dark-lighter: oklch(37.3% 0.034 259.733);
+    --tw-color-dark: oklch(27.8% 0.033 256.848);
+    --tw-color-dark-darker: oklch(21% 0.034 264.665);
   }
 }
 
 @layer utilities {
   .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-lime-DEFAULT) var(--color-dark-DEFAULT);
+    scrollbar-color: var(--tw-color-lime) var(--tw-color-dark);
   }
 
   .custom-scrollbar::-webkit-scrollbar {
@@ -27,18 +27,18 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: var(--color-dark-DEFAULT);
+    background: var(--tw-color-dark);
     border-radius: 4px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: var(--color-lime-DEFAULT);
+    background-color: var(--tw-color-lime);
     border-radius: 4px;
-    border: 2px solid var(--color-dark-DEFAULT);
+    border: 2px solid var(--tw-color-dark);
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: var(--color-lime-light);
+    background-color: var(--tw-color-lime-light);
   }
 }
 
@@ -64,16 +64,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgb(17, 24, 39); /* dark-darker */
+  background: var(--tw-color-dark);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(101, 163, 13); /* lime */
+  background: var(--tw-color-lime);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(132, 204, 22); /* lime-light */
+  background: var(--tw-color-lime-light);
 }
 
 /* Ensure proper spacing and layout */
