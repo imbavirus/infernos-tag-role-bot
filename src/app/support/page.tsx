@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import JoinDiscordButton from '@/components/JoinDiscordButton';
 
 /**
  * Form data interface for the support contact form
@@ -35,22 +36,27 @@ export default function SupportPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEmailEnabled = process.env.NEXT_PUBLIC_ENABLE_EMAIL === 'true';
+  const discordInviteLink = process.env.NEXT_PUBLIC_DISCORD_INVITE_LINK;
+  const isDiscordConfigured = discordInviteLink && discordInviteLink !== 'https://discord.gg/your-server';
 
   if (!isEmailEnabled) {
     return (
-      <div className="h-[calc(100vh-65px)] bg-dark">
+      <div className="min-h-screen bg-dark">
         <div className="container mx-auto px-4 py-16">
           <div className="max-w-2xl mx-auto text-center">
             <h1 className="text-4xl font-bold mb-6">Email Support Disabled</h1>
             <p className="text-gray-400 mb-8">
               Email support is currently disabled. Please contact us through our Discord server for assistance.
             </p>
-            <Link
-              href="/"
-              className="inline-flex items-center px-6 py-3 bg-lime hover:bg-lime-light text-white font-medium rounded-lg transition-colors"
-            >
-              Return to Home
-            </Link>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              {isDiscordConfigured && <JoinDiscordButton size="lg" />}
+              <Link
+                href="/"
+                className="inline-flex items-center px-6 py-3 bg-lime hover:bg-lime-light text-white font-medium rounded-lg transition-colors"
+              >
+                Return to Home
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -97,11 +103,22 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-65px)] bg-dark">
-      <div className="container mx-auto px-4 py-16">
+    <div className="min-h-screen bg-dark py-8">
+      <div className="container mx-auto px-4">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-4xl font-bold mb-8 text-center">Contact Support</h1>
           <div className="bg-dark-lighter rounded-xl p-8 border border-lime/20">
+            {isDiscordConfigured && (
+              <div className="bg-gradient-to-br from-dark-lighter to-dark rounded-xl p-6 mb-8 border border-discord/20">
+                <div className="flex flex-col items-center text-center">
+                  <h2 className="text-2xl font-semibold mb-4 text-discord">Need Help?</h2>
+                  <p className="text-gray-400 mb-6">
+                    Get faster support and connect with our community
+                  </p>
+                  <JoinDiscordButton size="lg" />
+                </div>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">

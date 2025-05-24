@@ -11,6 +11,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { FaTag, FaUsers, FaShieldAlt } from 'react-icons/fa';
 import AddToDiscordButton from '@/components/AddToDiscordButton';
+import JoinDiscordButton from '@/components/JoinDiscordButton';
 
 /**
  * Checks if email settings are configured
@@ -26,21 +27,19 @@ const isEmailConfigured = () => {
  */
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen bg-dark-darker">
+    <div className="min-h-screen bg-dark flex flex-col">
       {/* Hero Section */}
-      <section className="relative w-full py-24 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-lime/20 via-lime-dark/20 to-dark-darker/20" />
-        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
-        
-        <div className="relative max-w-[2000px] mx-auto px-2 sm:px-4 py-32">
-          <div className="text-center space-y-8">
-            <h1 className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-lime-light via-lime to-lime-dark animate-gradient leading-tight pb-2">
+      <section className="relative py-24 overflow-hidden">
+        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-10"></div>
+        <div className="container mx-auto px-4 relative">
+          <div className="max-w-4xl mx-auto text-center">
+            <h1 className="text-6xl font-bold mb-6 bg-gradient-to-r from-lime to-lime-light bg-clip-text text-transparent animate-gradient">
               Infernos Tag Role Bot
             </h1>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
-              Automatically manage roles based on server tags
+            <p className="text-xl text-gray-400 mb-8">
+              Automatically manage roles based on server tags. Keep your server organized with ease.
             </p>
-            <div className="pt-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <AddToDiscordButton size="lg" />
             </div>
           </div>
@@ -48,68 +47,30 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="w-full py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold text-center mb-16 bg-clip-text text-transparent bg-gradient-to-r from-lime-light to-lime">
-            Features
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-gradient-to-br from-dark-lighter to-dark p-8 rounded-2xl border border-lime/20 hover:border-lime/50 transition-all duration-300 hover:shadow-xl hover:shadow-lime/10 transform hover:-translate-y-1">
-              <div className="bg-gradient-to-br from-lime to-lime-dark p-3 rounded-xl w-fit mb-6">
-                <FaTag className="text-3xl" />
-              </div>
-              <h3 className="text-2xl font-semibold mb-4 text-lime-light">Server Tags</h3>
-              <p className="text-gray-400 leading-relaxed">
-                Assigns a role to members wearing the server tag
-              </p>
-            </div>
-            <div className="bg-gradient-to-br from-dark-lighter to-dark p-8 rounded-2xl border border-lime/20 hover:border-lime/50 transition-all duration-300 hover:shadow-xl hover:shadow-lime/10 transform hover:-translate-y-1">
-              <div className="bg-gradient-to-br from-lime to-lime-dark p-3 rounded-xl w-fit mb-6">
-                <FaUsers className="text-3xl" />
-              </div>
-              <h3 className="text-2xl font-semibold mb-4 text-lime-light">Role Management</h3>
-              <p className="text-gray-400 leading-relaxed">
-                Automatically add and remove roles based on tag changes
-              </p>
-            </div>
-            <div className="bg-gradient-to-br from-dark-lighter to-dark p-8 rounded-2xl border border-lime/20 hover:border-lime/50 transition-all duration-300 hover:shadow-xl hover:shadow-lime/10 transform hover:-translate-y-1">
-              <div className="bg-gradient-to-br from-lime to-lime-dark p-3 rounded-xl w-fit mb-6">
-                <FaShieldAlt className="text-3xl" />
-              </div>
-              <h3 className="text-2xl font-semibold mb-4 text-lime-light">Activity Logging</h3>
-              <p className="text-gray-400 leading-relaxed">
-                Track role changes in a dedicated logging channel
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works Section */}
-      <section className="w-full py-24 bg-dark-lighter/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-bold text-center mb-16 bg-clip-text text-transparent bg-gradient-to-r from-lime-light to-lime">
-            How It Works
-          </h2>
+      <section className="py-24">
+        <div className="container mx-auto px-4">
+          <h2 className="text-4xl font-bold text-center mb-16">Features</h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="bg-gradient-to-br from-dark-lighter to-dark p-8 rounded-2xl border border-lime/20 hover:border-lime/50 transition-all duration-300 hover:shadow-xl hover:shadow-lime/10 transform hover:-translate-y-1">
               <div className="bg-gradient-to-br from-lime to-lime-dark p-3 rounded-xl w-fit mb-6">
                 <span className="text-2xl font-bold">1</span>
               </div>
-              <h3 className="text-2xl font-semibold mb-4 text-lime-light">Add the Bot</h3>
+              <h3 className="text-2xl font-semibold mb-4 text-lime-light">Server Tags</h3>
               <p className="text-gray-400 leading-relaxed">
-                Add the bot to your server
+                Automatically detect when users have your server tag in their username
               </p>
             </div>
+
             <div className="bg-gradient-to-br from-dark-lighter to-dark p-8 rounded-2xl border border-lime/20 hover:border-lime/50 transition-all duration-300 hover:shadow-xl hover:shadow-lime/10 transform hover:-translate-y-1">
               <div className="bg-gradient-to-br from-lime to-lime-dark p-3 rounded-xl w-fit mb-6">
                 <span className="text-2xl font-bold">2</span>
               </div>
-              <h3 className="text-2xl font-semibold mb-4 text-lime-light">Configure Settings</h3>
+              <h3 className="text-2xl font-semibold mb-4 text-lime-light">Role Management</h3>
               <p className="text-gray-400 leading-relaxed">
-                Select a role to manage and a channel for logging role changes. Make sure the bot's highest role is positioned higher than the selected role in your server's role hierarchy.
+                Easily configure which role to assign to users with your server tag
               </p>
             </div>
+
             <div className="bg-gradient-to-br from-dark-lighter to-dark p-8 rounded-2xl border border-lime/20 hover:border-lime/50 transition-all duration-300 hover:shadow-xl hover:shadow-lime/10 transform hover:-translate-y-1">
               <div className="bg-gradient-to-br from-lime to-lime-dark p-3 rounded-xl w-fit mb-6">
                 <span className="text-2xl font-bold">3</span>
@@ -127,6 +88,9 @@ export default function Home() {
       <footer className="w-full py-12 mt-auto border-t border-lime/20 bg-dark-darker">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-gray-300 mb-4">© {new Date().getFullYear()} Infernos Tag Role Bot. All rights reserved.</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
+            <JoinDiscordButton size="sm" />
+          </div>
           <div className="flex justify-center gap-6">
             <Link href="/terms" className="text-gray-400 hover:text-lime transition-colors">
               Terms of Service
