@@ -33,8 +33,8 @@ export default function Home() {
         <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-10"></div>
         <div className="container mx-auto px-4 relative">
           <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-6xl font-bold mb-6 bg-gradient-to-r from-lime to-lime-light bg-clip-text text-transparent animate-gradient">
-              Infernos Tag Role Bot
+            <h1 className="text-6xl font-bold mb-6 leading-tight tracking-tight bg-gradient-to-r from-lime to-lime-light bg-clip-text text-transparent animate-gradient">
+              Inferno's Tag Role Bot
             </h1>
             <p className="text-xl text-gray-400 mb-8">
               Automatically manage roles based on server tags. Keep your server organized with ease.
