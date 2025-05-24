@@ -18,18 +18,10 @@ export const runtime = 'nodejs';
  */
 export async function POST() {
   try {
-    const client = botService.client;
-    const info = {
-      status: client.isReady() ? 'ready' : 'not_ready',
-      shards: client.shard?.count || 1,
-      guilds: client.guilds.cache.size,
-      ping: client.ws.ping,
-      uptime: client.uptime,
-      memory: process.memoryUsage(),
-    };
-
+    const info = botService.getStatusInfo();
     return NextResponse.json(info);
   } catch (error) {
-    return NextResponse.json({ status: 'error' }, { status: 500 });
+    console.error('Error getting system info:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 } 

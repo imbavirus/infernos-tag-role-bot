@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: Request,
-  { params }: { params: { guildId: string } }
+  context: { params: Promise<{ guildId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,8 +14,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const awaitedParams = await Promise.resolve(params);
-    const guildId = awaitedParams.guildId;
+    const { guildId } = await context.params;
 
     // Fetch guild configuration
     const config = await prisma.guildConfig.findUnique({
@@ -35,7 +34,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { guildId: string } }
+  context: { params: Promise<{ guildId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -44,8 +43,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const awaitedParams = await Promise.resolve(params);
-    const guildId = awaitedParams.guildId;
+    const { guildId } = await context.params;
     const body = await request.json();
     const { roleId, logChannelId } = body;
 

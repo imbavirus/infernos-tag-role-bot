@@ -664,6 +664,63 @@ export class BotService {
       throw error;
     }
   }
+
+  /**
+   * Gets the bot's user ID
+   * @returns {string | null} The bot's user ID, or null if not logged in
+   */
+  public getBotUserId(): string | null {
+    return this.client.user?.id || null;
+  }
+
+  /**
+   * Gets the bot's status information
+   * @returns {Object} Bot status information
+   */
+  public getStatusInfo() {
+    return {
+      status: this.client.isReady() ? 'ready' : 'not_ready',
+      shards: this.client.shard?.count || 1,
+      guilds: this.client.guilds.cache.size,
+      uptime: this.client.uptime || 0,
+      ping: this.client.ws.ping,
+      lastHeartbeat: this.lastHeartbeat,
+      isInitializing: this.isInitializing,
+      initializationError: this.initializationError?.message || null
+    };
+  }
+
+  /**
+   * Gets the bot's uptime in milliseconds
+   * @returns {number} Bot uptime in milliseconds
+   */
+  public getUptime(): number {
+    return this.client.uptime || 0;
+  }
+
+  /**
+   * Gets the bot's WebSocket ping in milliseconds
+   * @returns {number} Bot WebSocket ping in milliseconds
+   */
+  public getPing(): number {
+    return this.client.ws.ping;
+  }
+
+  /**
+   * Gets the number of guilds the bot is in
+   * @returns {number} Number of guilds
+   */
+  public getGuildCount(): number {
+    return this.client.guilds.cache.size;
+  }
+
+  /**
+   * Gets the number of shards the bot is using
+   * @returns {number} Number of shards
+   */
+  public getShardCount(): number {
+    return this.client.shard?.count || 1;
+  }
 }
 
 export const botService = new BotService(); 

@@ -28,33 +28,47 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    const { guildId } = await context.params;
-
-    if (!session?.user) {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await ensureBotStarted();
+    // Ensure bot is started
+    try {
+      await ensureBotStarted();
+    } catch (error) {
+      console.error('Failed to start bot:', error);
+      return NextResponse.json({ error: 'Bot is not ready' }, { status: 503 });
+    }
 
-    const guild = botService.client.guilds.cache.get(guildId);
+    // Get guild from bot's cache
+    const { guildId } = await context.params;
+    const guild = await botService.fetchGuild(guildId);
+    
     if (!guild) {
       return NextResponse.json({ error: 'Guild not found' }, { status: 404 });
     }
 
-    const channels = guild.channels.cache
-      .filter(channel => channel.type === 0) // 0 is GUILD_TEXT
+    // Fetch all channels from the guild
+    const channels = await guild.channels.fetch();
+    
+    // Convert channels to array and organize by category
+    const channelsArray = Array.from(channels.values())
+      .filter((channel): channel is NonNullable<typeof channel> => 
+        channel !== null && (channel.type === 0 || channel.type === 4)
+      )
       .map(channel => ({
         id: channel.id,
         name: channel.name,
         type: channel.type,
-      }));
+        parentId: channel.parentId,
+        position: channel.position,
+        isCategory: channel.type === 4
+      }))
+      .sort((a, b) => a.position - b.position);
 
-    return NextResponse.json({ channels });
+    return NextResponse.json(channelsArray);
   } catch (error) {
     console.error('Error fetching channels:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch channels', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 } 

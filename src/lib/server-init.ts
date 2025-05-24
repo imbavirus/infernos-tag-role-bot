@@ -28,45 +28,41 @@ export async function initializeServer() {
 }
 
 /**
- * Ensures the bot is started and ready to handle requests
- * @async
- * @function ensureBotStarted
- * @returns {Promise<void>} A promise that resolves when the bot is started
- * @throws {Error} If the bot fails to start
+ * Ensures the bot is started, with proper error handling and retries
+ * @returns {Promise<void>}
  */
-export async function ensureBotStarted() {
-  // If we have a recent error, don't try to start the bot again immediately
-  if (lastError && Date.now() - lastErrorTime < ERROR_CACHE_DURATION) {
-    throw lastError;
+export async function ensureBotStarted(): Promise<void> {
+  // Skip bot initialization during build time
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return Promise.resolve();
   }
 
-  if (!botStartPromise) {
-    console.log('Starting bot from server-init...');
-    botStartPromise = botService.start()
-      .then(() => {
-        // Clear any previous errors on successful start
-        lastError = null;
-        lastErrorTime = 0;
-        console.log('Bot started successfully from server-init');
-      })
-      .catch(error => {
-        console.error('Failed to start bot from server-init:', error);
-        lastError = error;
-        lastErrorTime = Date.now();
-        botStartPromise = null;
-        throw error;
-      });
+  // If bot is already logged in, return immediately
+  if (botService.isLoggedIn()) {
+    return Promise.resolve();
   }
 
-  try {
-    await botStartPromise;
-  } catch (error) {
-    // If the bot is already logged in despite the error, we can proceed
-    if (botService.isLoggedIn()) {
-      return;
+  // If there's already a start attempt in progress, wait for it
+  if (botStartPromise) {
+    return botStartPromise;
+  }
+
+  // Start the bot and store the promise
+  botStartPromise = (async () => {
+    try {
+      console.log('Starting bot from server-init...');
+      await botService.start();
+      console.log('Bot started successfully from server-init');
+    } catch (error) {
+      console.error('Failed to start bot:', error);
+      throw error;
+    } finally {
+      // Clear the promise after completion
+      botStartPromise = null;
     }
-    throw error;
-  }
+  })();
+
+  return botStartPromise;
 }
 
 // Start the bot immediately when this module is loaded

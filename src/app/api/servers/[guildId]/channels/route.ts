@@ -33,7 +33,7 @@ interface Channel {
  */
 export async function GET(
   request: Request,
-  { params }: { params: { guildId: string } }
+  context: { params: Promise<{ guildId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -50,10 +50,9 @@ export async function GET(
     }
 
     // Get guild from bot's cache
-    const awaitedParams = await Promise.resolve(params);
-    const guildId = awaitedParams.guildId;
+    const { guildId } = await context.params;
     
-    const guild = botService.client.guilds.cache.get(guildId);
+    const guild = await botService.fetchGuild(guildId);
     
     if (!guild) {
       return NextResponse.json({ error: 'Guild not found' }, { status: 404 });

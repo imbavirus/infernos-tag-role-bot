@@ -6,7 +6,7 @@ import { ensureBotStarted } from '@/lib/server-init';
 
 export async function GET(
   request: Request,
-  { params }: { params: { guildId: string } }
+  context: { params: Promise<{ guildId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -23,16 +23,21 @@ export async function GET(
     }
 
     // Get guild from bot's cache
-    const awaitedParams = await Promise.resolve(params);
-    const guildId = awaitedParams.guildId;
-    const guild = botService.client.guilds.cache.get(guildId);
+    const { guildId } = await context.params;
+    const guild = await botService.fetchGuild(guildId);
     
     if (!guild) {
       return NextResponse.json({ error: 'Guild not found' }, { status: 404 });
     }
 
+    // Get bot's user ID
+    const botUserId = botService.getBotUserId();
+    if (!botUserId) {
+      return NextResponse.json({ error: 'Bot not found' }, { status: 404 });
+    }
+
     // Get bot's member object in the guild
-    const botMember = await guild.members.fetch(botService.client.user!.id);
+    const botMember = await guild.members.fetch(botUserId);
     if (!botMember) {
       return NextResponse.json({ error: 'Bot not found in guild' }, { status: 404 });
     }
