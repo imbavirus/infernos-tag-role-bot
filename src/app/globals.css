@@ -2,15 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.lime.DEFAULT') theme('colors.dark.DEFAULT');
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: theme('colors.dark.DEFAULT');
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: theme('colors.lime.DEFAULT');
+    border-radius: 4px;
+    border: 2px solid theme('colors.dark.DEFAULT');
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: theme('colors.lime.light');
+  }
+}
+
 :root {
   --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 15, 23, 42;
-  --background-end-rgb: 17, 24, 39;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-start-rgb));
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--background-start-rgb)),
+    rgb(var(--background-end-rgb))
+  );
   min-height: 100vh;
 }
 

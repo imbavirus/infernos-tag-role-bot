@@ -26,6 +26,16 @@ class BotService {
   private processingPromise: Promise<void> | null = null;
   private readyPromise: Promise<void>;
   private readyResolve: (() => void) | null = null;
+  private readyReject: ((error: Error) => void) | null = null;
+  private readonly LOGIN_TIMEOUT = 30000; // Reduced to 30 seconds
+  private readonly MAX_RETRIES = 3;
+  private readonly RETRY_DELAY = 2000; // Reduced to 2 seconds
+  private tokenVerificationCache: {
+    isValid: boolean;
+    timestamp: number;
+  } | null = null;
+  private readonly TOKEN_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private isInitializing: boolean = false;
 
   constructor() {
     this.client = new Client({
@@ -33,10 +43,14 @@ class BotService {
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
       ],
+      rest: {
+        timeout: 15000, // Reduced to 15 seconds
+      },
     });
 
-    this.readyPromise = new Promise((resolve) => {
+    this.readyPromise = new Promise((resolve, reject) => {
       this.readyResolve = resolve;
+      this.readyReject = reject;
     });
 
     this.setupEventHandlers();
@@ -44,10 +58,32 @@ class BotService {
 
   private setupEventHandlers() {
     this.client.on('ready', async () => {
+      console.log('Bot is ready');
       if (this.readyResolve) {
         this.readyResolve();
       }
-      await this.initializeGuilds();
+      try {
+        await this.initializeGuilds();
+      } catch (error) {
+        console.error('Error initializing guilds:', error);
+      }
+    });
+
+    this.client.on('error', (error) => {
+      console.error('Bot encountered an error:', error);
+      if (this.readyReject) {
+        this.readyReject(error);
+      }
+    });
+
+    this.client.on('debug', (message) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DEBUG]', message);
+      }
+    });
+
+    this.client.on('warn', (message) => {
+      console.warn('[WARN]', message);
     });
 
     this.client.on('shardReady', (shardId) => {
@@ -264,17 +300,128 @@ class BotService {
     }
   }
 
+  public getGuilds(): Guild[] {
+    if (!this.client.isReady()) {
+      return [];
+    }
+    return Array.from(this.client.guilds.cache.values());
+  }
+
+  private async verifyToken(token: string): Promise<boolean> {
+    // Check cache first
+    if (this.tokenVerificationCache && 
+        Date.now() - this.tokenVerificationCache.timestamp < this.TOKEN_CACHE_DURATION) {
+      console.log('Using cached token verification result');
+      return this.tokenVerificationCache.isValid;
+    }
+
+    try {
+      const response = await fetch('https://discord.com/api/v10/users/@me', {
+        headers: {
+          Authorization: `Bot ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Token verification successful. Bot username:', data.username);
+        // Cache the successful result
+        this.tokenVerificationCache = {
+          isValid: true,
+          timestamp: Date.now(),
+        };
+        return true;
+      } else if (response.status === 429) {
+        // Rate limited - use cached result if available, otherwise assume valid
+        console.warn('Rate limited during token verification. Using cached result if available.');
+        if (this.tokenVerificationCache) {
+          return this.tokenVerificationCache.isValid;
+        }
+        // If no cache, assume valid to prevent blocking the bot
+        return true;
+      } else {
+        console.error('Token verification failed:', response.status, response.statusText);
+        // Cache the failed result
+        this.tokenVerificationCache = {
+          isValid: false,
+          timestamp: Date.now(),
+        };
+        return false;
+      }
+    } catch (error) {
+      console.error('Error verifying token:', error);
+      // On error, use cached result if available, otherwise assume valid
+      if (this.tokenVerificationCache) {
+        return this.tokenVerificationCache.isValid;
+      }
+      // If no cache, assume valid to prevent blocking the bot
+      return true;
+    }
+  }
+
+  private async attemptLogin(token: string, attempt: number = 1): Promise<void> {
+    try {
+      console.log(`Attempting to login (attempt ${attempt}/${this.MAX_RETRIES})...`);
+      await this.client.login(token);
+      console.log('Login successful');
+    } catch (error) {
+      console.error(`Login attempt ${attempt} failed:`, error);
+      
+      if (attempt < this.MAX_RETRIES) {
+        console.log(`Retrying in ${this.RETRY_DELAY}ms...`);
+        await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
+        return this.attemptLogin(token, attempt + 1);
+      }
+      
+      throw new Error('Failed to login after maximum retries');
+    }
+  }
+
   public async start() {
-    await this.client.login(process.env.DISCORD_TOKEN);
-    return this.readyPromise;
+    if (this.isInitializing) {
+      return this.readyPromise;
+    }
+
+    if (this.client.isReady()) {
+      return Promise.resolve();
+    }
+
+    this.isInitializing = true;
+    const token = process.env.DISCORD_TOKEN;
+    if (!token) {
+      throw new Error('Discord bot token not found');
+    }
+
+    try {
+      await this.attemptLogin(token);
+      
+      // Wait for the ready event with a timeout
+      await Promise.race([
+        this.readyPromise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Bot initialization timed out')), this.LOGIN_TIMEOUT)
+        )
+      ]);
+
+      // Fetch all guilds after ready
+      console.log('Fetching guilds...');
+      await this.client.guilds.fetch();
+      console.log(`Fetched ${this.client.guilds.cache.size} guilds`);
+
+      // Initialize guilds
+      await this.initializeGuilds();
+      
+      this.isInitializing = false;
+      return Promise.resolve();
+    } catch (error) {
+      this.isInitializing = false;
+      console.error('Failed to start bot:', error);
+      throw error;
+    }
   }
 
   public isLoggedIn(): boolean {
     return this.client.isReady();
-  }
-
-  public getGuilds(): Guild[] {
-    return Array.from(this.client.guilds.cache.values());
   }
 }
 

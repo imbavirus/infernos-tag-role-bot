@@ -3,9 +3,10 @@
 import React from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { FaDiscord, FaTag, FaUsers, FaShieldAlt } from 'react-icons/fa';
+import { FaTag, FaUsers, FaShieldAlt } from 'react-icons/fa';
+import AddToDiscordButton from '@/components/AddToDiscordButton';
 
-const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+const NEXT_PUBLIC_DISCORD_CLIENT_ID = process.env.NEXT_PUBLIC_NEXT_PUBLIC_DISCORD_CLIENT_ID;
 
 export default function Home() {
   const { data: session } = useSession();
@@ -26,13 +27,7 @@ export default function Home() {
               Automatically manage roles based on server tags. Keep your community organized and roles up-to-date with ease.
             </p>
             <div className="pt-4">
-              <Link 
-                href={`https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=2415922176&scope=bot%20applications.commands`}
-                className="inline-flex items-center px-8 py-4 rounded-xl bg-gradient-to-r from-lime to-lime-dark hover:from-lime-light hover:to-lime transition-all duration-300 text-lg font-semibold shadow-lg shadow-lime/25 hover:shadow-lime/40 hover:scale-105"
-              >
-                <FaDiscord className="mr-3 text-xl" />
-                Add to Discord
-              </Link>
+              <AddToDiscordButton size="lg" />
             </div>
           </div>
         </div>

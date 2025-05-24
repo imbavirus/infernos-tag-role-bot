@@ -31,13 +31,7 @@ export async function GET() {
       return NextResponse.json({ guilds: [] });
     }
 
-    // Filter guilds to only include those with GUILD_TAGS feature
-    const guildsWithTags = guilds.filter(guild => 
-      // @ts-ignore - features is a string array but TypeScript doesn't know about GUILD_TAGS
-      guild.features.includes('GUILD_TAGS')
-    );
-
-    const formattedGuilds = guildsWithTags.map(guild => ({
+    const formattedGuilds = guilds.map(guild => ({
       id: guild.id,
       name: guild.name
     }));

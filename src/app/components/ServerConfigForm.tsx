@@ -3,12 +3,7 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { FaServer, FaUserTag, FaHashtag } from 'react-icons/fa';
-
-interface Guild {
-  id: string;
-  name: string;
-}
+import { FaUserTag, FaHashtag } from 'react-icons/fa';
 
 interface Role {
   id: string;
@@ -20,54 +15,74 @@ interface Channel {
   id: string;
   name: string;
   type: number;
+  isCategory: boolean;
+  parentId?: string;
+  position: number;
 }
 
-export default function ServerConfigForm() {
+interface ServerConfigFormProps {
+  serverId: string;
+  hasTagsFeature?: boolean;
+}
+
+export default function ServerConfigForm({ serverId, hasTagsFeature = false }: ServerConfigFormProps) {
   const { data: session } = useSession();
-  const [guilds, setGuilds] = useState<Guild[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
-  const [selectedGuild, setSelectedGuild] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
   const [selectedChannel, setSelectedChannel] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
-    if (session?.user) {
-      fetchGuilds();
-    }
-  }, [session]);
+  // Function to determine if a color is dark
+  const isDarkColor = (hexColor: string) => {
+    // Convert hex to RGB
+    const r = parseInt(hexColor.slice(0, 2), 16);
+    const g = parseInt(hexColor.slice(2, 4), 16);
+    const b = parseInt(hexColor.slice(4, 6), 16);
+    
+    // Calculate relative luminance
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    
+    return luminance < 0.5;
+  };
+
+  // Function to lighten a color
+  const lightenColor = (hexColor: string) => {
+    // Convert hex to RGB
+    let r = parseInt(hexColor.slice(0, 2), 16);
+    let g = parseInt(hexColor.slice(2, 4), 16);
+    let b = parseInt(hexColor.slice(4, 6), 16);
+
+    // Lighten the color by 50%
+    r = Math.min(255, Math.round(r + (255 - r) * 0.5));
+    g = Math.min(255, Math.round(g + (255 - g) * 0.5));
+    b = Math.min(255, Math.round(b + (255 - b) * 0.5));
+
+    // Convert back to hex
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  };
+
+  // Function to get text color based on background color
+  const getTextColor = (hexColor: string) => {
+    return isDarkColor(hexColor) ? lightenColor(hexColor) : `#${hexColor}`;
+  };
 
   useEffect(() => {
-    if (selectedGuild) {
+    if (serverId) {
       fetchRoles();
       fetchChannels();
-    } else {
-      setRoles([]);
-      setChannels([]);
+      fetchConfig();
     }
-  }, [selectedGuild]);
-
-  const fetchGuilds = async () => {
-    try {
-      const response = await fetch('/api/guilds/list');
-      if (!response.ok) throw new Error('Failed to fetch guilds');
-      const data = await response.json();
-      setGuilds(data.guilds);
-    } catch (error) {
-      console.error('Error fetching guilds:', error);
-      setError('Failed to load servers');
-    }
-  };
+  }, [serverId]);
 
   const fetchRoles = async () => {
     try {
-      const response = await fetch(`/api/guilds/${selectedGuild}/roles`);
+      const response = await fetch(`/api/servers/${serverId}/roles`);
       if (!response.ok) throw new Error('Failed to fetch roles');
       const data = await response.json();
-      setRoles(data.roles);
+      setRoles(data);
     } catch (error) {
       console.error('Error fetching roles:', error);
       setError('Failed to load roles');
@@ -76,13 +91,27 @@ export default function ServerConfigForm() {
 
   const fetchChannels = async () => {
     try {
-      const response = await fetch(`/api/guilds/${selectedGuild}/channels`);
+      const response = await fetch(`/api/servers/${serverId}/channels`);
       if (!response.ok) throw new Error('Failed to fetch channels');
       const data = await response.json();
-      setChannels(data.channels);
+      setChannels(data);
     } catch (error) {
       console.error('Error fetching channels:', error);
       setError('Failed to load channels');
+    }
+  };
+
+  const fetchConfig = async () => {
+    try {
+      const response = await fetch(`/api/guilds/${serverId}`);
+      if (!response.ok) throw new Error('Failed to fetch configuration');
+      const data = await response.json();
+      if (data) {
+        setSelectedRole(data.representorsRoleId || '');
+        setSelectedChannel(data.logChannelId || '');
+      }
+    } catch (error) {
+      console.error('Error fetching configuration:', error);
     }
   };
 
@@ -99,7 +128,7 @@ export default function ServerConfigForm() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          guildId: selectedGuild,
+          guildId: serverId,
           representorsRoleId: selectedRole,
           logChannelId: selectedChannel || null,
         }),
@@ -111,9 +140,6 @@ export default function ServerConfigForm() {
       }
 
       setSuccess(true);
-      setSelectedGuild('');
-      setSelectedRole('');
-      setSelectedChannel('');
     } catch (error) {
       console.error('Error saving configuration:', error);
       setError(error instanceof Error ? error.message : 'Failed to save configuration');
@@ -132,30 +158,13 @@ export default function ServerConfigForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div>
-        <label htmlFor="guild" className="block text-sm font-medium text-lime-light mb-2">
-          <div className="flex items-center gap-2">
-            <FaServer className="text-lime" />
-            Select Server
-          </div>
-        </label>
-        <select
-          id="guild"
-          value={selectedGuild}
-          onChange={(e) => setSelectedGuild(e.target.value)}
-          className="w-full bg-dark border border-lime/20 rounded-lg px-4 py-2 text-gray-300 focus:outline-none focus:border-lime/40 focus:ring-1 focus:ring-lime/40"
-          required
-        >
-          <option value="">Select a server</option>
-          {guilds.map((guild) => (
-            <option key={guild.id} value={guild.id}>
-              {guild.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {!hasTagsFeature && (
+        <div className="text-yellow-400 text-sm bg-yellow-900/20 border border-yellow-900/40 rounded-lg p-3">
+          This server does not have the Server Tags feature enabled. Please enable it in your server settings to use this bot.
+        </div>
+      )}
 
-      {selectedGuild && (
+      {hasTagsFeature && (
         <>
           <div>
             <label htmlFor="role" className="block text-sm font-medium text-lime-light mb-2">
@@ -173,60 +182,92 @@ export default function ServerConfigForm() {
             >
               <option value="">Select a role</option>
               {roles.map((role) => (
-                <option key={role.id} value={role.id} style={{ color: `#${role.color}` }}>
+                <option 
+                  key={role.id} 
+                  value={role.id} 
+                  style={{ 
+                    color: getTextColor(role.color)
+                  }}
+                >
                   {role.name}
                 </option>
               ))}
             </select>
           </div>
 
-          <div>
-            <label htmlFor="channel" className="block text-sm font-medium text-lime-light mb-2">
-              <div className="flex items-center gap-2">
-                <FaHashtag className="text-lime" />
-                Select Log Channel (Optional)
-              </div>
+          <div className="space-y-2">
+            <label htmlFor="channelId" className="block text-sm font-medium text-gray-200">
+              Channel
             </label>
             <select
-              id="channel"
+              id="channelId"
+              name="channelId"
               value={selectedChannel}
               onChange={(e) => setSelectedChannel(e.target.value)}
-              className="w-full bg-dark border border-lime/20 rounded-lg px-4 py-2 text-gray-300 focus:outline-none focus:border-lime/40 focus:ring-1 focus:ring-lime/40"
+              className="mt-1 block w-full rounded-md border-gray-700 bg-gray-800 text-white shadow-sm focus:border-lime-500 focus:ring-lime-500 sm:text-sm"
             >
-              <option value="">No channel selected</option>
-              {channels.map((channel) => (
-                <option key={channel.id} value={channel.id}>
-                  #{channel.name}
-                </option>
-              ))}
+              <option value="">Select a channel</option>
+              { (!!channels ? channels : [])
+                .filter(channel => !channel.isCategory)
+                .sort((a, b) => {
+                  // If both channels are in the same category, sort by position
+                  if (a.parentId === b.parentId) {
+                    return a.position - b.position;
+                  }
+                  // If one channel is in a category and the other isn't, put the categorized one first
+                  if (a.parentId && !b.parentId) return -1;
+                  if (!a.parentId && b.parentId) return 1;
+                  // If both are in different categories, sort by category position
+                  const categoryA = channels.find(c => c.id === a.parentId);
+                  const categoryB = channels.find(c => c.id === b.parentId);
+                  if (categoryA && categoryB) {
+                    return categoryA.position - categoryB.position;
+                  }
+                  return 0;
+                })
+                .map(channel => {
+                  const category = channel.parentId 
+                    ? channels.find(c => c.id === channel.parentId)
+                    : null;
+                  return (
+                    <option 
+                      key={channel.id} 
+                      value={channel.id}
+                      disabled={channel.isCategory}
+                      className={channel.isCategory ? 'font-bold text-gray-400' : ''}
+                    >
+                      {category ? `${category.name} > ${channel.name}` : channel.name}
+                    </option>
+                  );
+                })}
             </select>
           </div>
+
+          {error && (
+            <div className="text-red-400 text-sm bg-red-900/20 border border-red-900/40 rounded-lg p-3">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="text-lime-light text-sm bg-lime/10 border border-lime/20 rounded-lg p-3">
+              Configuration saved successfully!
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || !selectedRole}
+            className={`w-full flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-medium transition-all duration-300
+              ${loading || !selectedRole
+                ? 'bg-dark-lighter text-gray-500 cursor-not-allowed'
+                : 'bg-gradient-to-r from-lime to-lime-dark hover:from-lime-light hover:to-lime text-dark-darker shadow-lg shadow-lime/25 hover:shadow-lime/40 hover:scale-105'
+              }`}
+          >
+            {loading ? 'Saving...' : 'Save Configuration'}
+          </button>
         </>
       )}
-
-      {error && (
-        <div className="text-red-400 text-sm bg-red-900/20 border border-red-900/40 rounded-lg p-3">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="text-lime-light text-sm bg-lime/10 border border-lime/20 rounded-lg p-3">
-          Configuration saved successfully!
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={loading || !selectedGuild || !selectedRole}
-        className={`w-full flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-medium transition-all duration-300
-          ${loading || !selectedGuild || !selectedRole
-            ? 'bg-dark-lighter text-gray-500 cursor-not-allowed'
-            : 'bg-gradient-to-r from-lime to-lime-dark hover:from-lime-light hover:to-lime text-dark-darker shadow-lg shadow-lime/25 hover:shadow-lime/40 hover:scale-105'
-          }`}
-      >
-        {loading ? 'Saving...' : 'Save Configuration'}
-      </button>
     </form>
   );
 } 

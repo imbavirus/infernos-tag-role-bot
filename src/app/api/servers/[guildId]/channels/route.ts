@@ -25,41 +25,45 @@ export async function GET(
     // Get guild from bot's cache
     const awaitedParams = await Promise.resolve(params);
     const guildId = awaitedParams.guildId;
+    console.log('Fetching channels for guild:', guildId);
+    
     const guild = botService.client.guilds.cache.get(guildId);
+    console.log('Guild found in cache:', !!guild);
     
     if (!guild) {
       return NextResponse.json({ error: 'Guild not found' }, { status: 404 });
     }
 
-    // Get bot's member object in the guild
-    const botMember = await guild.members.fetch(botService.client.user!.id);
-    if (!botMember) {
-      return NextResponse.json({ error: 'Bot not found in guild' }, { status: 404 });
-    }
-
-    // Get bot's highest role position
-    const botHighestRole = Math.max(...botMember.roles.cache.map(role => role.position));
-
-    // Fetch roles from the guild
-    const roles = await guild.roles.fetch();
+    // Fetch all channels from the guild
+    const channels = await guild.channels.fetch();
+    console.log('Raw channels data:', {
+      totalChannels: channels.size,
+      channelTypes: Array.from(channels.values()).map(c => c?.type)
+    });
     
-    // Convert roles to array, filter out @everyone and roles above bot's highest role
-    const rolesArray = Array.from(roles.values())
-      .filter(role => 
-        role.id !== guild.id && // Filter out @everyone
-        role.position < botHighestRole && // Only include roles below bot's highest role
-        !role.managed // Filter out managed roles (bot roles, etc.)
+    // Convert channels to array and organize by category
+    const channelsArray = Array.from(channels.values())
+      .filter((channel): channel is NonNullable<typeof channel> => 
+        channel !== null && (channel.type === 0 || channel.type === 4)
       )
-      .map(role => ({
-        id: role.id,
-        name: role.name,
-        color: role.hexColor.replace('#', ''),
+      .map(channel => ({
+        id: channel.id,
+        name: channel.name,
+        type: channel.type,
+        parentId: channel.parentId,
+        position: channel.position,
+        isCategory: channel.type === 4
       }))
-      .sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by name
+      .sort((a, b) => a.position - b.position);
 
-    return NextResponse.json(rolesArray);
+    console.log('Filtered channels array:', {
+      totalFilteredChannels: channelsArray.length,
+      channels: channelsArray.map(c => ({ name: c.name, type: c.type }))
+    });
+
+    return NextResponse.json(channelsArray);
   } catch (error) {
-    console.error('Error fetching roles:', error);
+    console.error('Error fetching channels:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 } 

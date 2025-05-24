@@ -5,7 +5,7 @@ import DiscordProvider from 'next-auth/providers/discord';
 const requiredEnvVars = {
   NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
   NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-  DISCORD_CLIENT_ID: process.env.DISCORD_CLIENT_ID,
+  NEXT_PUBLIC_DISCORD_CLIENT_ID: process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID,
   DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET,
 };
 
@@ -23,11 +23,11 @@ if (missingEnvVars.length > 0) {
 export const authOptions: NextAuthOptions = {
   providers: [
     DiscordProvider({
-      clientId: process.env.DISCORD_CLIENT_ID!,
+      clientId: process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID!,
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: 'identify email guilds',
+          scope: 'identify email guilds bot applications.commands',
           prompt: 'consent',
           access_type: 'offline',
           response_type: 'code'
@@ -52,6 +52,29 @@ export const authOptions: NextAuthOptions = {
         session.accessToken = token.accessToken;
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // Handle the state parameter if it exists
+      try {
+        const urlObj = new URL(url);
+        const state = urlObj.searchParams.get('state');
+        if (state) {
+          try {
+            const stateData = JSON.parse(state);
+            if (stateData.guildId) {
+              // Redirect to dashboard with the guild ID
+              return `${baseUrl}/dashboard?guild_id=${stateData.guildId}`;
+            }
+          } catch (error) {
+            console.error('Error parsing state:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing URL:', error);
+      }
+      
+      // Default redirect to dashboard
+      return `${baseUrl}/dashboard`;
     },
   },
   pages: {
