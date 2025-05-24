@@ -1,6 +1,20 @@
-import { Client, GatewayIntentBits, Guild, GuildMember, TextChannel, EmbedBuilder, MessageCreateOptions, APIEmbed, DiscordAPIError } from 'discord.js';
+/**
+ * @file bot.ts
+ * @description Discord bot service for managing server tags and roles
+ * @module services/bot
+ */
+
+import { Client, GatewayIntentBits, Guild, GuildMember, TextChannel, EmbedBuilder, MessageCreateOptions, APIEmbed, DiscordAPIError, Role } from 'discord.js';
 import { prisma } from '@/lib/prisma';
 
+/**
+ * Represents the guild data structure for a user
+ * @interface GuildData
+ * @property {Object} user - User information
+ * @property {string} user.id - User's Discord ID
+ * @property {Object} [user.primary_guild] - User's primary guild information
+ * @property {string} user.primary_guild.identity_guild_id - ID of the user's primary guild
+ */
 interface GuildData {
   user: {
     id: string;
@@ -10,17 +24,34 @@ interface GuildData {
   };
 }
 
+/**
+ * Represents a role change event
+ * @interface RoleChange
+ * @property {'add' | 'remove'} type - Type of role change
+ * @property {GuildMember} member - The member whose role was changed
+ */
 interface RoleChange {
   type: 'add' | 'remove';
   member: GuildMember;
 }
 
+/**
+ * Represents the configuration for a guild
+ * @interface GuildConfig
+ * @property {string} guildId - Discord guild ID
+ * @property {string} roleId - ID of the role to assign
+ * @property {string | null} logChannelId - ID of the channel for logging role changes
+ */
 interface GuildConfig {
   guildId: string;
-  representorsRoleId: string;
+  roleId: string;
   logChannelId: string | null;
 }
 
+/**
+ * Service class for managing the Discord bot
+ * @class BotService
+ */
 class BotService {
   public client: Client;
   private processingPromise: Promise<void> | null = null;
@@ -37,6 +68,10 @@ class BotService {
   private readonly TOKEN_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   private isInitializing: boolean = false;
 
+  /**
+   * Creates a new instance of BotService
+   * @constructor
+   */
   constructor() {
     this.client = new Client({
       intents: [
@@ -45,8 +80,13 @@ class BotService {
       ],
       rest: {
         timeout: 15000, // Reduced to 15 seconds
-      },
+      }
     });
+
+    // Set debug level based on environment
+    if (process.env.NODE_ENV !== 'development') {
+      process.env.DISCORD_DEBUG = '0';
+    }
 
     this.readyPromise = new Promise((resolve, reject) => {
       this.readyResolve = resolve;
@@ -56,6 +96,10 @@ class BotService {
     this.setupEventHandlers();
   }
 
+  /**
+   * Sets up event handlers for the Discord client
+   * @private
+   */
   private setupEventHandlers() {
     this.client.on('ready', async () => {
       console.log('Bot is ready');
@@ -73,12 +117,6 @@ class BotService {
       console.error('Bot encountered an error:', error);
       if (this.readyReject) {
         this.readyReject(error);
-      }
-    });
-
-    this.client.on('debug', (message) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[DEBUG]', message);
       }
     });
 
@@ -114,6 +152,11 @@ class BotService {
     setInterval(() => this.sendHeartbeat(), 30000);
   }
 
+  /**
+   * Initializes guilds by fetching their members
+   * @private
+   * @returns {Promise<void>}
+   */
   private async initializeGuilds() {
     const configs = await prisma.guildConfig.findMany();
     for (const config of configs) {
@@ -130,13 +173,17 @@ class BotService {
     }
   }
 
+  /**
+   * Checks all guilds for role updates
+   * @private
+   * @returns {Promise<void>}
+   */
   private async checkGuilds() {
     if (this.processingPromise) return;
 
     this.processingPromise = (async () => {
       try {
         const configs = await prisma.guildConfig.findMany();
-        
         for (const config of configs) {
           await this.processGuild(config);
         }
@@ -149,14 +196,20 @@ class BotService {
     this.processingPromise = null;
   }
 
+  /**
+   * Processes a single guild for role updates
+   * @private
+   * @param {GuildConfig} config - The guild configuration
+   * @returns {Promise<void>}
+   */
   private async processGuild(config: GuildConfig) {
     const guild = this.client.guilds.cache.get(config.guildId);
     if (!guild) {
       return;
     }
 
-    const representorsRole = guild.roles.cache.get(config.representorsRoleId);
-    if (!representorsRole) {
+    const role = guild.roles.cache.get(config.roleId);
+    if (!role) {
       return;
     }
 
@@ -176,10 +229,16 @@ class BotService {
     const roleChanges = await this.processMembers(members, memberGuildMap, config);
 
     if (roleChanges.length > 0 && logChannel) {
-      await this.sendRoleChangeLog(logChannel, roleChanges);
+      await this.sendRoleChangeLog(logChannel, roleChanges, role);
     }
   }
 
+  /**
+   * Fetches guild data for all members in a guild
+   * @private
+   * @param {string} guildId - The ID of the guild to fetch data for
+   * @returns {Promise<Map<string, GuildData>>} Map of member IDs to their guild data
+   */
   private async fetchMemberGuildData(guildId: string): Promise<Map<string, GuildData>> {
     const memberGuildMap = new Map<string, GuildData>();
     let after = '0';
@@ -212,6 +271,14 @@ class BotService {
     return memberGuildMap;
   }
 
+  /**
+   * Processes members to determine role changes needed
+   * @private
+   * @param {Map<string, GuildMember>} members - Map of member IDs to their GuildMember objects
+   * @param {Map<string, GuildData>} memberGuildMap - Map of member IDs to their guild data
+   * @param {GuildConfig} config - The guild configuration
+   * @returns {Promise<RoleChange[]>} Array of role changes to be applied
+   */
   private async processMembers(
     members: Map<string, GuildMember>,
     memberGuildMap: Map<string, GuildData>,
@@ -227,13 +294,13 @@ class BotService {
         const currentGuildId = memberData?.user?.primary_guild?.identity_guild_id;
         
         const shouldHaveRole = currentGuildId === config.guildId;
-        const hasRole = member.roles.cache.has(config.representorsRoleId);
+        const hasRole = member.roles.cache.has(config.roleId);
 
         if (shouldHaveRole && !hasRole) {
-          await member.roles.add(config.representorsRoleId);
+          await member.roles.add(config.roleId);
           roleChanges.push({ type: 'add', member });
         } else if (!shouldHaveRole && hasRole) {
-          await member.roles.remove(config.representorsRoleId);
+          await member.roles.remove(config.roleId);
           roleChanges.push({ type: 'remove', member });
         }
 
@@ -248,7 +315,15 @@ class BotService {
     return roleChanges;
   }
 
-  private async sendRoleChangeLog(channel: TextChannel, changes: RoleChange[]) {
+  /**
+   * Sends a log message about role changes to a channel
+   * @private
+   * @param {TextChannel} channel - The channel to send the log to
+   * @param {RoleChange[]} changes - Array of role changes to log
+   * @param {Role} role - The role being updated
+   * @returns {Promise<void>}
+   */
+  private async sendRoleChangeLog(channel: TextChannel, changes: RoleChange[], role: Role) {
     try {
       const embed = new EmbedBuilder()
         .setColor(0x2F3136)
@@ -261,14 +336,14 @@ class BotService {
 
       if (added.length > 0) {
         embed.addFields({
-          name: '✅ Added Representors Role',
+          name: `✅ Added ${role.name} Role`,
           value: added.map(c => `• ${c.member.displayName}`).join('\n')
         });
       }
 
       if (removed.length > 0) {
         embed.addFields({
-          name: '❌ Removed Representors Role',
+          name: `❌ Removed ${role.name} Role`,
           value: removed.map(c => `• ${c.member.displayName}`).join('\n')
         });
       }
@@ -283,6 +358,11 @@ class BotService {
     }
   }
 
+  /**
+   * Sends a heartbeat to indicate the bot is alive
+   * @private
+   * @returns {Promise<void>}
+   */
   private async sendHeartbeat() {
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -300,6 +380,10 @@ class BotService {
     }
   }
 
+  /**
+   * Gets all guilds the bot is in
+   * @returns {Guild[]} Array of guilds
+   */
   public getGuilds(): Guild[] {
     if (!this.client.isReady()) {
       return [];
@@ -307,6 +391,12 @@ class BotService {
     return Array.from(this.client.guilds.cache.values());
   }
 
+  /**
+   * Verifies if a Discord token is valid
+   * @private
+   * @param {string} token - The token to verify
+   * @returns {Promise<boolean>} Whether the token is valid
+   */
   private async verifyToken(token: string): Promise<boolean> {
     // Check cache first
     if (this.tokenVerificationCache && 
@@ -359,6 +449,13 @@ class BotService {
     }
   }
 
+  /**
+   * Attempts to log in with the provided token
+   * @private
+   * @param {string} token - The token to use for login
+   * @param {number} [attempt=1] - The current attempt number
+   * @returns {Promise<void>}
+   */
   private async attemptLogin(token: string, attempt: number = 1): Promise<void> {
     try {
       console.log(`Attempting to login (attempt ${attempt}/${this.MAX_RETRIES})...`);
@@ -377,6 +474,10 @@ class BotService {
     }
   }
 
+  /**
+   * Starts the bot service
+   * @returns {Promise<void>}
+   */
   public async start() {
     if (this.isInitializing) {
       return this.readyPromise;
@@ -420,6 +521,10 @@ class BotService {
     }
   }
 
+  /**
+   * Checks if the bot is logged in
+   * @returns {boolean} Whether the bot is logged in
+   */
   public isLoggedIn(): boolean {
     return this.client.isReady();
   }

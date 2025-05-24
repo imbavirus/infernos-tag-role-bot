@@ -1,16 +1,40 @@
+/**
+ * @file ServerConfigForm.tsx
+ * @description Server configuration form component for managing role and channel settings
+ * @module app/components/ServerConfigForm
+ */
+
 'use client';
 
 import React from 'react';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { FaUserTag, FaHashtag } from 'react-icons/fa';
+import { Server } from '@/types/server';
 
+/**
+ * Represents a Discord role
+ * @interface Role
+ * @property {string} id - The unique identifier of the role
+ * @property {string} name - The name of the role
+ * @property {string} color - The color of the role in hexadecimal format
+ */
 interface Role {
   id: string;
   name: string;
   color: string;
 }
 
+/**
+ * Represents a Discord channel
+ * @interface Channel
+ * @property {string} id - The unique identifier of the channel
+ * @property {string} name - The name of the channel
+ * @property {number} type - The type of the channel
+ * @property {boolean} isCategory - Whether the channel is a category
+ * @property {string} [parentId] - The ID of the parent category, if any
+ * @property {number} position - The position of the channel in the channel list
+ */
 interface Channel {
   id: string;
   name: string;
@@ -20,12 +44,24 @@ interface Channel {
   position: number;
 }
 
+/**
+ * Props for the ServerConfigForm component
+ * @interface ServerConfigFormProps
+ * @property {Server} server - The server to configure
+ * @property {boolean} [hasTagsFeature=false] - Whether the server has the tags feature enabled
+ */
 interface ServerConfigFormProps {
-  serverId: string;
+  server: Server;
   hasTagsFeature?: boolean;
 }
 
-export default function ServerConfigForm({ serverId, hasTagsFeature = false }: ServerConfigFormProps) {
+/**
+ * Server configuration form component
+ * @component
+ * @param {ServerConfigFormProps} props - Component props
+ * @returns {JSX.Element} The server configuration form
+ */
+export default function ServerConfigForm({ server, hasTagsFeature = false }: ServerConfigFormProps) {
   const { data: session } = useSession();
   const [roles, setRoles] = useState<Role[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -34,8 +70,15 @@ export default function ServerConfigForm({ serverId, hasTagsFeature = false }: S
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+  const [isLoadingChannels, setIsLoadingChannels] = useState(true);
 
-  // Function to determine if a color is dark
+  /**
+   * Determines if a color is dark based on its luminance
+   * @function isDarkColor
+   * @param {string} hexColor - The color in hexadecimal format
+   * @returns {boolean} True if the color is dark, false otherwise
+   */
   const isDarkColor = (hexColor: string) => {
     // Convert hex to RGB
     const r = parseInt(hexColor.slice(0, 2), 16);
@@ -48,7 +91,12 @@ export default function ServerConfigForm({ serverId, hasTagsFeature = false }: S
     return luminance < 0.5;
   };
 
-  // Function to lighten a color
+  /**
+   * Lightens a color by 50%
+   * @function lightenColor
+   * @param {string} hexColor - The color in hexadecimal format
+   * @returns {string} The lightened color in hexadecimal format
+   */
   const lightenColor = (hexColor: string) => {
     // Convert hex to RGB
     let r = parseInt(hexColor.slice(0, 2), 16);
@@ -64,46 +112,75 @@ export default function ServerConfigForm({ serverId, hasTagsFeature = false }: S
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
   };
 
-  // Function to get text color based on background color
+  /**
+   * Gets the appropriate text color based on the background color
+   * @function getTextColor
+   * @param {string} hexColor - The background color in hexadecimal format
+   * @returns {string} The text color in hexadecimal format
+   */
   const getTextColor = (hexColor: string) => {
     return isDarkColor(hexColor) ? lightenColor(hexColor) : `#${hexColor}`;
   };
 
   useEffect(() => {
-    if (serverId) {
+    if (server.id) {
       fetchRoles();
       fetchChannels();
       fetchConfig();
     }
-  }, [serverId]);
+  }, [server.id]);
 
+  /**
+   * Fetches the roles for the server
+   * @async
+   * @function fetchRoles
+   * @returns {Promise<void>}
+   */
   const fetchRoles = async () => {
     try {
-      const response = await fetch(`/api/servers/${serverId}/roles`);
+      setIsLoadingRoles(true);
+      const response = await fetch(`/api/servers/${server.id}/roles`);
       if (!response.ok) throw new Error('Failed to fetch roles');
       const data = await response.json();
       setRoles(data);
     } catch (error) {
       console.error('Error fetching roles:', error);
       setError('Failed to load roles');
+    } finally {
+      setIsLoadingRoles(false);
     }
   };
 
+  /**
+   * Fetches the channels for the server
+   * @async
+   * @function fetchChannels
+   * @returns {Promise<void>}
+   */
   const fetchChannels = async () => {
     try {
-      const response = await fetch(`/api/servers/${serverId}/channels`);
+      setIsLoadingChannels(true);
+      const response = await fetch(`/api/servers/${server.id}/channels`);
       if (!response.ok) throw new Error('Failed to fetch channels');
       const data = await response.json();
       setChannels(data);
     } catch (error) {
       console.error('Error fetching channels:', error);
       setError('Failed to load channels');
+    } finally {
+      setIsLoadingChannels(false);
     }
   };
 
+  /**
+   * Fetches the current configuration for the server
+   * @async
+   * @function fetchConfig
+   * @returns {Promise<void>}
+   */
   const fetchConfig = async () => {
     try {
-      const response = await fetch(`/api/guilds/${serverId}`);
+      const response = await fetch(`/api/guilds/${server.id}`);
       if (!response.ok) throw new Error('Failed to fetch configuration');
       const data = await response.json();
       if (data) {
@@ -115,6 +192,13 @@ export default function ServerConfigForm({ serverId, hasTagsFeature = false }: S
     }
   };
 
+  /**
+   * Handles form submission to save the server configuration
+   * @async
+   * @function handleSubmit
+   * @param {React.FormEvent} e - The form submission event
+   * @returns {Promise<void>}
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -128,7 +212,7 @@ export default function ServerConfigForm({ serverId, hasTagsFeature = false }: S
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          guildId: serverId,
+          guildId: server.id,
           representorsRoleId: selectedRole,
           logChannelId: selectedChannel || null,
         }),
@@ -179,9 +263,10 @@ export default function ServerConfigForm({ serverId, hasTagsFeature = false }: S
               onChange={(e) => setSelectedRole(e.target.value)}
               className="w-full bg-dark border border-lime/20 rounded-lg px-4 py-2 text-gray-300 focus:outline-none focus:border-lime/40 focus:ring-1 focus:ring-lime/40"
               required
+              disabled={isLoadingRoles}
             >
-              <option value="">Select a role</option>
-              {roles.map((role) => (
+              <option value="">{isLoadingRoles ? 'Loading roles...' : 'Select a role'}</option>
+              {!isLoadingRoles && roles.map((role) => (
                 <option 
                   key={role.id} 
                   value={role.id} 
@@ -208,19 +293,17 @@ export default function ServerConfigForm({ serverId, hasTagsFeature = false }: S
               value={selectedChannel}
               onChange={(e) => setSelectedChannel(e.target.value)}
               className="w-full bg-dark border border-lime/20 rounded-lg px-4 py-2 text-gray-300 focus:outline-none focus:border-lime/40 focus:ring-1 focus:ring-lime/40"
+              disabled={isLoadingChannels}
             >
-              <option value="">Select a channel</option>
-              { (!!channels ? channels : [])
+              <option value="">{isLoadingChannels ? 'Loading channels...' : 'Select a channel'}</option>
+              {!isLoadingChannels && channels
                 .filter(channel => !channel.isCategory)
                 .sort((a, b) => {
-                  // If both channels are in the same category, sort by position
                   if (a.parentId === b.parentId) {
                     return a.position - b.position;
                   }
-                  // If one channel is in a category and the other isn't, put the categorized one first
                   if (a.parentId && !b.parentId) return -1;
                   if (!a.parentId && b.parentId) return 1;
-                  // If both are in different categories, sort by category position
                   const categoryA = channels.find(c => c.id === a.parentId);
                   const categoryB = channels.find(c => c.id === b.parentId);
                   if (categoryA && categoryB) {

@@ -1,9 +1,36 @@
+/**
+ * @file route.ts
+ * @description Channels API route for managing Discord channels
+ * @module app/api/servers/[guildId]/channels/route
+ */
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { botService } from '@/services/bot';
 import { ensureBotStarted } from '@/lib/server-init';
 
+/**
+ * Interface for Discord channel data
+ * @interface Channel
+ * @property {string} id - Channel ID
+ * @property {string} name - Channel name
+ * @property {number} type - Channel type
+ */
+interface Channel {
+  id: string;
+  name: string;
+  type: number;
+}
+
+/**
+ * GET handler for channels API route
+ * @async
+ * @function GET
+ * @param {Object} params - Route parameters
+ * @param {string} params.guildId - Guild ID
+ * @returns {Promise<NextResponse>} List of channels
+ */
 export async function GET(
   request: Request,
   { params }: { params: { guildId: string } }
@@ -25,10 +52,8 @@ export async function GET(
     // Get guild from bot's cache
     const awaitedParams = await Promise.resolve(params);
     const guildId = awaitedParams.guildId;
-    console.log('Fetching channels for guild:', guildId);
     
     const guild = botService.client.guilds.cache.get(guildId);
-    console.log('Guild found in cache:', !!guild);
     
     if (!guild) {
       return NextResponse.json({ error: 'Guild not found' }, { status: 404 });
@@ -36,10 +61,6 @@ export async function GET(
 
     // Fetch all channels from the guild
     const channels = await guild.channels.fetch();
-    console.log('Raw channels data:', {
-      totalChannels: channels.size,
-      channelTypes: Array.from(channels.values()).map(c => c?.type)
-    });
     
     // Convert channels to array and organize by category
     const channelsArray = Array.from(channels.values())
@@ -55,11 +76,6 @@ export async function GET(
         isCategory: channel.type === 4
       }))
       .sort((a, b) => a.position - b.position);
-
-    console.log('Filtered channels array:', {
-      totalFilteredChannels: channelsArray.length,
-      channels: channelsArray.map(c => ({ name: c.name, type: c.type }))
-    });
 
     return NextResponse.json(channelsArray);
   } catch (error) {

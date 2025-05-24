@@ -58,7 +58,7 @@ model VerificationToken {
 model GuildConfig {
   id                String   @id @default(cuid())
   guildId          String   @unique
-  representorsRoleId String
+  roleId           String
   logChannelId     String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

@@ -1,15 +1,34 @@
+/**
+ * @file AddToDiscordButton.tsx
+ * @description A React component that renders a button to add the bot to a Discord server
+ * @module components/AddToDiscordButton
+ */
+
 'use client';
 
 import React from 'react';
 import { signIn } from 'next-auth/react';
 import { FaDiscord } from 'react-icons/fa';
 
+/**
+ * Props for the AddToDiscordButton component
+ * @interface AddToDiscordButtonProps
+ * @property {string} [className] - Additional CSS classes to apply to the button
+ * @property {'sm' | 'md' | 'lg'} [size='md'] - Size variant of the button
+ * @property {string} [guildId] - Optional Discord guild ID to pre-select the server
+ */
 interface AddToDiscordButtonProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   guildId?: string;
 }
 
+/**
+ * A button component that initiates the Discord OAuth flow to add the bot to a server
+ * @component
+ * @param {AddToDiscordButtonProps} props - Component props
+ * @returns {JSX.Element | null} The rendered button or null if Discord Client ID is invalid
+ */
 export default function AddToDiscordButton({ className = '', size = 'md', guildId }: AddToDiscordButtonProps) {
   const NEXT_PUBLIC_DISCORD_CLIENT_ID = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
   
@@ -24,12 +43,21 @@ export default function AddToDiscordButton({ className = '', size = 'md', guildI
     return null;
   }
 
+  /**
+   * Size variants for the button
+   * @type {Record<'sm' | 'md' | 'lg', string>}
+   */
   const sizeClasses = {
     sm: 'px-4 py-2 text-sm',
     md: 'px-6 py-3 text-base',
     lg: 'px-8 py-4 text-lg'
   };
 
+  /**
+   * Handles the click event to initiate Discord OAuth flow
+   * @param {React.MouseEvent} e - The click event
+   * @returns {Promise<void>}
+   */
   const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     

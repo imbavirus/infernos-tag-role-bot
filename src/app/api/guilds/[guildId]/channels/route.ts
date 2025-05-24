@@ -1,3 +1,9 @@
+/**
+ * @file route.ts
+ * @description Channels API route for fetching guild channels
+ * @module app/api/guilds/[guildId]/channels/route
+ */
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -7,6 +13,15 @@ import { ensureBotStarted } from '@/lib/server-init';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+/**
+ * GET handler for channels API route
+ * @async
+ * @function GET
+ * @param {Request} request - The incoming request
+ * @param {Object} context - Route context
+ * @param {Promise<{guildId: string}>} context.params - Route parameters
+ * @returns {Promise<NextResponse>} List of text channels in the guild
+ */
 export async function GET(
   request: Request,
   context: { params: Promise<{ guildId: string }> }

@@ -1,3 +1,9 @@
+/**
+ * @file page.tsx
+ * @description Dashboard page component for managing server configurations
+ * @module app/dashboard/page
+ */
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -6,22 +12,35 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { FaServer, FaChevronDown } from 'react-icons/fa';
 import ServerConfigForm from '../components/ServerConfigForm';
 import AddToDiscordButton from '@/components/AddToDiscordButton';
+import { Server } from '@/types/server';
+import ServerList from '@/components/ServerList';
 
-interface Server {
-  id: string;
-  name: string;
-  icon: string | null;
-  hasBot: boolean;
-  hasTagsFeature?: boolean;
-}
+/**
+ * Props for the DashboardPage component
+ * @interface DashboardPageProps
+ */
+interface DashboardPageProps {}
 
+/**
+ * Represents a Discord role
+ * @interface Role
+ * @property {string} id - The unique identifier of the role
+ * @property {string} name - The name of the role
+ * @property {string} color - The color of the role in hexadecimal format
+ */
 interface Role {
   id: string;
   name: string;
   color: string;
 }
 
-export default function Dashboard() {
+/**
+ * Dashboard page component for managing server configurations
+ * @component
+ * @param {DashboardPageProps} props - Component props
+ * @returns {JSX.Element} The dashboard page
+ */
+export default function DashboardPage({}: DashboardPageProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -77,22 +96,48 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchServers = async () => {
       try {
-        console.log('Starting server fetch...');
-        console.log('Authentication status:', status);
-        console.log('Session data:', session);
+        if (!session?.user?.accessToken) {
+          throw new Error('Authentication required. Please sign in again.');
+        }
         
-        const response = await fetch('/api/servers');
-        console.log('Server response status:', response.status);
-        console.log('Server response headers:', Object.fromEntries(response.headers.entries()));
+        const response = await fetch('/api/servers', {
+          headers: {
+            'Authorization': `Bearer ${session.user.accessToken}`
+          }
+        });
         
         if (!response.ok) {
           const errorData = await response.json();
           console.error('Server fetch error response:', errorData);
+          
+          if (response.status === 503) {
+            throw new Error('Bot is not ready. Please try again in a few moments.');
+          }
+          if (response.status === 429) {
+            throw new Error('Discord API rate limit reached. Please try again in a few moments.');
+          }
+          if (response.status === 401) {
+            if (session?.error === 'RefreshAccessTokenError') {
+              router.replace('/auth/signin');
+              return;
+            }
+            
+            // Try to refresh the session first
+            router.refresh();
+            
+            // If we still get a 401 after refresh, redirect to sign in
+            setTimeout(() => {
+              if (status === 'unauthenticated' as const) {
+                router.replace('/auth/signin');
+              }
+            }, 1000);
+            
+            throw new Error('Session expired. Please try again.');
+          }
           throw new Error(errorData.error || 'Failed to fetch servers');
         }
         
         const data = await response.json();
-        console.log('Server data received:', data);
         setServers(data);
         setError(null);
 
@@ -107,20 +152,33 @@ export default function Dashboard() {
       } catch (error) {
         console.error('Error fetching servers:', error);
         setError(error instanceof Error ? error.message : 'Failed to fetch servers');
+        // Reset loading state after a delay to prevent UI from getting stuck
+        setTimeout(() => setIsLoading(false), 2000);
       } finally {
-        console.log('Server fetch completed, setting isLoading to false');
         setIsLoading(false);
       }
     };
 
     if (status === 'authenticated') {
-      console.log('User is authenticated, starting server fetch...');
       fetchServers();
+    } else if (status === 'unauthenticated') {
+      router.replace('/');
     } else {
-      console.log('User authentication status:', status);
       setIsLoading(false);
     }
-  }, [status, session, searchParams]);
+  }, [status, session, searchParams, router]);
+
+  // Add a timeout to prevent infinite loading
+  useEffect(() => {
+    const loadingTimeout = setTimeout(() => {
+      if (isLoading) {
+        setIsLoading(false);
+        setError('Request timed out. Please try again.');
+      }
+    }, 30000); // 30 second timeout
+
+    return () => clearTimeout(loadingTimeout);
+  }, [isLoading]);
 
   // Fetch roles when server is selected
   useEffect(() => {
@@ -147,8 +205,11 @@ export default function Dashboard() {
 
   if (status === 'loading' || isLoading) {
     return (
-      <div className="min-h-screen bg-dark-darker flex items-center justify-center">
-        <div className="text-lime-light text-xl">Loading...</div>
+      <div className="h-[calc(100vh-65px)] bg-dark-darker flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-lime-light border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-lime-light">Loading your servers...</p>
+        </div>
       </div>
     );
   }
@@ -156,8 +217,20 @@ export default function Dashboard() {
   if (error) {
     return (
       <div className="min-h-screen bg-dark-darker flex items-center justify-center">
-        <div className="text-red-400 text-xl bg-red-900/20 border border-red-900/40 rounded-lg p-6">
-          {error}
+        <div className="text-center">
+          <div className="text-red-400 text-xl bg-red-900/20 border border-red-900/40 rounded-lg p-6 mb-4">
+            {error}
+          </div>
+          <button
+            onClick={() => {
+              setIsLoading(true);
+              setError(null);
+              router.refresh();
+            }}
+            className="px-4 py-2 bg-lime text-dark-darker rounded-lg hover:bg-lime-light transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
@@ -169,7 +242,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="h-[calc(100vh-64px)] bg-dark-darker flex justify-center p-4 pt-4">
+    <div className="h-[calc(100vh-65px)] bg-dark-darker flex justify-center p-4 pt-20">
       <div className="w-full max-w-2xl bg-dark-lighter rounded-2xl border border-lime/20 shadow-xl shadow-lime/25 h-fit">
         <div className="p-6">
           <div className="mb-8">
@@ -280,9 +353,9 @@ export default function Dashboard() {
             </div>
           )}
 
-          {selectedServer && selectedServer.hasBot && (
-            <ServerConfigForm
-              serverId={selectedServer.id}
+          {selectedServer && (
+            <ServerConfigForm 
+              server={selectedServer}
               hasTagsFeature={selectedServer.hasTagsFeature}
             />
           )}

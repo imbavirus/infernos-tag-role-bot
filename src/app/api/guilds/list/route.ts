@@ -1,3 +1,9 @@
+/**
+ * @file route.ts
+ * @description Guild list API route for fetching bot's guilds
+ * @module app/api/guilds/list/route
+ */
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -6,6 +12,12 @@ import { botService } from '@/services/bot';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+/**
+ * GET handler for guild list API route
+ * @async
+ * @function GET
+ * @returns {Promise<NextResponse>} List of guilds the bot is in
+ */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);

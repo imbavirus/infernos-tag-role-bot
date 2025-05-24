@@ -1,5 +1,5 @@
-const Discord = require('discord.js');
-const client = new Discord.Client({ 
+import { Client, EmbedBuilder } from 'discord.js';
+const client = new Client({ 
   intents: [
     'Guilds', 
     'GuildMembers',
@@ -7,7 +7,7 @@ const client = new Discord.Client({
   ] 
 });
 
-const representorsRoleId = '1371885877344604210';
+const roleId = '1371885877344604210';
 const guildId = '205381135562309632';
 const logChannelId = null; // Optional: Set to null or a channel ID
 let processingPromise = null;
@@ -15,11 +15,12 @@ let processingPromise = null;
 // Helper function to delay execution
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+
 // Helper function to create role change log message
 const createRoleChangeLog = (changes) => {
   if (changes.length === 0) return null;
   
-  const embed = new Discord.EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor('#2F3136')
     .setTitle('Role Updates')
     .setDescription('The following role changes were made:')
@@ -31,14 +32,14 @@ const createRoleChangeLog = (changes) => {
 
   if (added.length > 0) {
     embed.addFields({
-      name: '✅ Added Representors Role',
+      name: `✅ Added ${role.name} Role`,
       value: added.map(c => `• ${c.member.displayName}`).join('\n')
     });
   }
 
   if (removed.length > 0) {
     embed.addFields({
-      name: '❌ Removed Representors Role',
+      name: `❌ Removed ${role.name} Role`,
       value: removed.map(c => `• ${c.member.displayName}`).join('\n')
     });
   }
@@ -57,11 +58,97 @@ client.on('ready', async () => {
   }
   
   try {
-    console.log(`Fetching initial member list for ${guild.name}...`);
-    await guild.members.fetch();
-    console.log(`Successfully cached ${guild.members.cache.size} members`);
+    console.log('\n=== Guild Settings ===');
+    console.log(`Server Name: ${guild.name}`);
+    console.log(`Verification Level: ${guild.verificationLevel}`);
+    console.log(`Member Count: ${guild.memberCount}`);
+    console.log(`Member Screening: ${guild.members.cache.first()?.guild.features.includes('MEMBER_VERIFICATION_GATE_ENABLED') ? 'Enabled' : 'Disabled'}`);
+    console.log(`Manual Approval: ${guild.features.includes('MEMBER_VERIFICATION_MANUAL_APPROVAL') ? 'Enabled' : 'Disabled'}`);
+    
+    // Try to get the user directly
+    console.log('\n=== Checking User ===');
+    try {
+      const user = await client.users.fetch('1257946587288698900');
+      console.log('\n-----------------------------------');
+      console.log(`Username: ${user.tag}`);
+      console.log(`ID: ${user.id}`);
+      console.log(`Created at: ${user.createdAt.toISOString()}`);
+      console.log(`Bot: ${user.bot}`);
+      console.log('-----------------------------------');
+
+      // Check guild features and settings
+      console.log('\n=== Guild Features ===');
+      console.log('Enabled Features:');
+      guild.features.forEach(feature => {
+        console.log(`- ${feature}`);
+      });
+
+      // Check if there are any verification channels
+      const verificationChannels = guild.channels.cache.filter(channel => 
+        channel.name.toLowerCase().includes('verify') || 
+        channel.name.toLowerCase().includes('verification') ||
+        channel.name.toLowerCase().includes('welcome')
+      );
+
+      if (verificationChannels.size > 0) {
+        console.log('\n=== Verification Channels ===');
+        verificationChannels.forEach(channel => {
+          console.log(`\n-----------------------------------`);
+          console.log(`Name: ${channel.name}`);
+          console.log(`ID: ${channel.id}`);
+          console.log(`Type: ${channel.type}`);
+          console.log(`Position: ${channel.position}`);
+        });
+      }
+
+      // Check onboarding settings
+      try {
+        const onboarding = await guild.fetchOnboarding();
+        console.log('\n=== Onboarding Settings ===');
+        console.log(`Enabled: ${onboarding.enabled}`);
+        console.log(`Prompts: ${onboarding.prompts.length}`);
+        console.log(`Default Channels: ${onboarding.defaultChannels.length}`);
+        
+        if (onboarding.prompts.length > 0) {
+          console.log('\nOnboarding Prompts:');
+          onboarding.prompts.forEach(prompt => {
+            console.log(`\n-----------------------------------`);
+            console.log(`Title: ${prompt.title}`);
+            console.log(`Type: ${prompt.type}`);
+            console.log(`Required: ${prompt.required}`);
+          });
+        }
+      } catch (onboardingError) {
+        console.log('Error fetching onboarding settings:', onboardingError.message);
+      }
+
+    } catch (error) {
+      console.log('Could not fetch user:', error.message);
+    }
+
   } catch (error) {
-    console.error('Error during initial member fetch:', error);
+    console.error('Error checking guild settings:', error);
+  }
+});
+
+// Set up event listeners for join attempts
+client.on('guildMemberAdd', async member => {
+  if (member.user.id === '1257946587288698900') {
+    console.log('\n=== Target User Join Attempt ===');
+    console.log(`Username: ${member.user.tag}`);
+    console.log(`ID: ${member.user.id}`);
+    console.log(`Joined At: ${member.joinedAt.toISOString()}`);
+    console.log(`Pending: ${member.pending}`);
+  }
+});
+
+// Listen for any guild member updates
+client.on('guildMemberUpdate', (oldMember, newMember) => {
+  if (newMember.user.id === '1257946587288698900') {
+    console.log('\n=== Target User Status Update ===');
+    console.log(`Username: ${newMember.user.tag}`);
+    console.log(`Pending Status Changed: ${oldMember.pending} -> ${newMember.pending}`);
+    console.log(`Roles Changed: ${oldMember.roles.cache.size} -> ${newMember.roles.cache.size}`);
   }
 });
 
@@ -82,9 +169,9 @@ setInterval(async () => {
       }
 
       // Verify the role exists
-      const representorsRole = guild.roles.cache.get(representorsRoleId);
-      if (!representorsRole) {
-        console.error(`Representors role (${representorsRoleId}) not found in guild. Please verify the role ID.`);
+      const role = guild.roles.cache.get(roleId);
+      if (!role) {
+        console.error(`Role (${roleId}) not found in guild. Please verify the role ID.`);
         return;
       }
 
@@ -98,17 +185,13 @@ setInterval(async () => {
         }
       }
 
-      console.log(`Processing members for guild ${guild.name}...`);
-      
       // Get all members from cache
       const members = guild.members.cache;
-      console.log(`Found ${members.size} members in cache`);
 
       // Get all member IDs
       const memberIds = Array.from(members.keys());
       
       // Make REST calls with pagination to get all members' guild data
-      console.log('Fetching guild data for all members...');
       const memberGuildMap = new Map();
       let after = '0';
       let hasMore = true;
@@ -125,7 +208,6 @@ setInterval(async () => {
             }
             after = guildData[guildData.length - 1].user.id;
             hasMore = guildData.length === 1000;
-            console.log(`Fetched ${memberGuildMap.size} members so far...`);
           }
           // Add a small delay between pagination requests
           await delay(100);
@@ -134,8 +216,6 @@ setInterval(async () => {
           hasMore = false;
         }
       }
-      
-      console.log(`Successfully fetched data for ${memberGuildMap.size} members`);
       
       // Update member cache
       let processedCount = 0;
@@ -149,31 +229,23 @@ setInterval(async () => {
           
           // Update roles based on current guild
           const shouldHaveRole = currentGuildId === guildId;
-          const hasRole = member.roles.cache.has(representorsRoleId);
+          const hasRole = member.roles.cache.has(roleId);
 
           if (shouldHaveRole && !hasRole) {
-            await member.roles.add(representorsRoleId);
-            console.log(`✅ ${member.displayName}: Added Representors role (guild: ${currentGuildId})`);
+            await member.roles.add(roleId);
             roleChanges.push({ type: 'add', member });
           } else if (!shouldHaveRole && hasRole) {
-            await member.roles.remove(representorsRoleId);
-            console.log(`❌ ${member.displayName}: Removed Representors role (guild: ${currentGuildId})`);
+            await member.roles.remove(roleId);
             roleChanges.push({ type: 'remove', member });
-          } else {
-            console.log(`• ${member.displayName}: No role change needed (guild: ${currentGuildId})`);
           }
 
           processedCount++;
-          if (processedCount % 10 === 0) {
-            console.log(`Progress: ${processedCount}/${members.size} members processed (${errorCount} errors)`);
-          }
         } catch (error) {
           console.error(`Error processing member ${memberId}:`, error);
           errorCount++;
           processedCount++;
         }
       }
-      console.log(`Completed processing all ${processedCount} members (${errorCount} errors)`);
 
       // Send role change log if there were any changes and a log channel is configured
       if (roleChanges.length > 0 && logChannel) {

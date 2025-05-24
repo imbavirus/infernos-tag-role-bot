@@ -1,7 +1,7 @@
 /**
  * @file route.ts
- * @description Bot start API route for starting the bot
- * @module app/api/bot/start/route
+ * @description Initialization API route for setting up the application
+ * @module app/api/init/route
  */
 
 import { NextResponse } from 'next/server';
@@ -9,11 +9,15 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { botService } from '@/services/bot';
 
+// Force this route to be server-side only
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /**
- * POST handler for bot start API route
+ * POST handler for init API route
  * @async
  * @function POST
- * @returns {Promise<NextResponse>} Start response
+ * @returns {Promise<NextResponse>} Initialization response
  */
 export async function POST() {
   try {
@@ -23,11 +27,11 @@ export async function POST() {
     }
 
     await botService.start();
-    return NextResponse.json({ success: true, message: 'Bot started successfully' });
+    return NextResponse.json({ success: true, message: 'Application initialized successfully' });
   } catch (error) {
-    console.error('Error starting bot:', error);
+    console.error('Error initializing application:', error);
     return NextResponse.json(
-      { error: 'Failed to start bot' },
+      { error: 'Failed to initialize application' },
       { status: 500 }
     );
   }

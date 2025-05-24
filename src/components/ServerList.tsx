@@ -1,15 +1,34 @@
+/**
+ * @file ServerList.tsx
+ * @description A React component that displays a list of Discord servers with their status
+ * @module components/ServerList
+ */
+
 'use client';
 
 import React from 'react';
 import { FaServer } from 'react-icons/fa';
 import { Server } from '@/types/server';
 
+/**
+ * Props for the ServerList component
+ * @interface ServerListProps
+ * @property {Server[]} servers - Array of Discord servers to display
+ * @property {Server | null} selectedServer - Currently selected server
+ * @property {(server: Server) => void} onSelectServer - Callback function when a server is selected
+ */
 interface ServerListProps {
   servers: Server[];
   selectedServer: Server | null;
   onSelectServer: (server: Server) => void;
 }
 
+/**
+ * A component that renders a list of Discord servers with their icons and status
+ * @component
+ * @param {ServerListProps} props - Component props
+ * @returns {JSX.Element} The rendered server list
+ */
 export default function ServerList({ servers, selectedServer, onSelectServer }: ServerListProps) {
   return (
     <div className="bg-gray-800 rounded-lg overflow-hidden">

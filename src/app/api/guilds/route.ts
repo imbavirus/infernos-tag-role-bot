@@ -1,3 +1,9 @@
+/**
+ * @file route.ts
+ * @description Guild configuration API route for managing guild settings
+ * @module app/api/guilds/route
+ */
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
@@ -20,6 +26,13 @@ export async function GET() {
   }
 }
 
+/**
+ * POST handler for guild configuration API route
+ * @async
+ * @function POST
+ * @param {Request} request - The incoming request containing guild configuration
+ * @returns {Promise<NextResponse>} Updated guild configuration
+ */
 export async function POST(request: Request) {
   try {
     const session = await getServerSession();

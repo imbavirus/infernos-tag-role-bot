@@ -1,6 +1,17 @@
+/**
+ * @file next-auth.d.ts
+ * @description Type definitions for NextAuth.js authentication
+ * @module types/next-auth
+ */
+
 import 'next-auth';
 import { DefaultSession } from 'next-auth';
 
+/**
+ * Extended session type for NextAuth.js
+ * @interface Session
+ * @extends {DefaultSession}
+ */
 declare module 'next-auth' {
   interface Session {
     user: {
@@ -8,8 +19,8 @@ declare module 'next-auth' {
       name?: string | null;
       email?: string | null;
       image?: string | null;
-    } & DefaultSession['user'];
-    accessToken?: string;
+      accessToken?: string | undefined;
+    }
   }
 
   interface User {
@@ -17,8 +28,13 @@ declare module 'next-auth' {
   }
 }
 
+/**
+ * Extended JWT type for NextAuth.js
+ * @interface JWT
+ */
 declare module 'next-auth/jwt' {
   interface JWT {
-    accessToken?: string;
+    id: string;
+    accessToken?: string | undefined;
   }
 } 

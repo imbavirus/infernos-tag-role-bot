@@ -1,3 +1,9 @@
+/**
+ * @file route.ts
+ * @description Roles API route for fetching guild roles
+ * @module app/api/guilds/[guildId]/roles/route
+ */
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -6,6 +12,15 @@ import { botService } from '@/services/bot';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+/**
+ * GET handler for roles API route
+ * @async
+ * @function GET
+ * @param {Request} request - The incoming request
+ * @param {Object} context - Route context
+ * @param {Promise<{guildId: string}>} context.params - Route parameters
+ * @returns {Promise<NextResponse>} List of roles in the guild
+ */
 export async function GET(
   request: Request,
   context: { params: Promise<{ guildId: string }> }
@@ -38,8 +53,6 @@ export async function GET(
         name: role.name,
         color: role.hexColor,
       }));
-
-    console.log(`Fetched ${roles.length} roles for guild ${guild.name}`);
 
     return NextResponse.json({ roles });
   } catch (error) {
