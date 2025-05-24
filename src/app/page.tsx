@@ -112,7 +112,15 @@ export default function Home() {
       {/* Footer */}
       <footer className="w-full py-12 mt-auto border-t border-lime/20 bg-dark-darker">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-300">© {new Date().getFullYear()} Infernos Tag Role Bot. All rights reserved.</p>
+          <p className="text-gray-300 mb-4">© {new Date().getFullYear()} Infernos Tag Role Bot. All rights reserved.</p>
+          <div className="flex justify-center gap-6">
+            <Link href="/terms" className="text-gray-400 hover:text-lime transition-colors">
+              Terms of Service
+            </Link>
+            <Link href="/privacy" className="text-gray-400 hover:text-lime transition-colors">
+              Privacy Policy
+            </Link>
+          </div>
         </div>
       </footer>
     </div>
