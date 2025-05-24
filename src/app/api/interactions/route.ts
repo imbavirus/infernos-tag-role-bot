@@ -26,38 +26,60 @@ export async function POST(request: Request) {
     const rawBody = await request.text();
     logger.debug('Received raw body:', rawBody);
     
-    const body = JSON.parse(rawBody) as DiscordInteraction;
-    logger.debug('Parsed body:', body);
-    
     // Verify the request is from Discord
     const signature = request.headers.get('x-signature-ed25519');
     const timestamp = request.headers.get('x-signature-timestamp');
     
     logger.debug('Headers:', {
-      signature,
-      timestamp,
+      'x-signature-ed25519': signature,
+      'x-signature-timestamp': timestamp,
       'content-type': request.headers.get('content-type'),
       'user-agent': request.headers.get('user-agent')
     });
     
     if (!signature || !timestamp) {
-      logger.error('Missing signature or timestamp');
-      return new NextResponse('Unauthorized', { 
-        status: 401,
-        headers: {
-          'Content-Type': 'application/json'
+      logger.error('Missing required headers:', { signature: !!signature, timestamp: !!timestamp });
+      return new NextResponse(
+        JSON.stringify({ error: 'Missing required headers' }), 
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json'
+          }
         }
-      });
+      );
+    }
+
+    // Parse body after header validation
+    let body: DiscordInteraction;
+    try {
+      body = JSON.parse(rawBody) as DiscordInteraction;
+      logger.debug('Parsed body:', body);
+    } catch (error) {
+      logger.error('Failed to parse request body:', error);
+      return new NextResponse(
+        JSON.stringify({ error: 'Invalid request body' }), 
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
     }
 
     // For PING type (type 1), just return PONG (type 1)
     if (body.type === 1) {
       logger.info('Received PING, sending PONG');
-      return NextResponse.json({ type: 1 }, {
-        headers: {
-          'Content-Type': 'application/json'
+      return new NextResponse(
+        JSON.stringify({ type: 1 }), 
+        { 
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json'
+          }
         }
-      });
+      );
     }
 
     // For other types, verify the signature
@@ -66,33 +88,60 @@ export async function POST(request: Request) {
     
     if (!isValid) {
       logger.error('Invalid signature');
-      return new NextResponse('Invalid signature', { 
-        status: 401,
-        headers: {
-          'Content-Type': 'application/json'
+      return new NextResponse(
+        JSON.stringify({ error: 'Invalid signature' }), 
+        { 
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json'
+          }
         }
-      });
+      );
     }
 
     // Handle different interaction types
     switch (body.type) {
       case 2: // APPLICATION_COMMAND
         logger.info('Received application command:', body.data?.name);
-        return NextResponse.json({ 
-          type: 4, 
-          data: { 
-            content: 'Command received!',
-            flags: 64 // Ephemeral message
-          } 
-        });
+        return new NextResponse(
+          JSON.stringify({ 
+            type: 4, 
+            data: { 
+              content: 'Command received!',
+              flags: 64 // Ephemeral message
+            } 
+          }), 
+          { 
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
       
       default:
         logger.error('Unknown interaction type:', body.type);
-        return NextResponse.json({ error: 'Unknown interaction type' }, { status: 400 });
+        return new NextResponse(
+          JSON.stringify({ error: 'Unknown interaction type' }), 
+          { 
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
     }
   } catch (error) {
     logger.error('Error handling interaction:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return new NextResponse(
+      JSON.stringify({ error: 'Internal Server Error' }), 
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
   }
 }
 
