@@ -4,7 +4,7 @@
  * @module services/bot
  */
 
-import { Client, GatewayIntentBits, Guild, GuildMember, TextChannel, EmbedBuilder, MessageCreateOptions, APIEmbed, DiscordAPIError, Role } from 'discord.js';
+import { Client, GatewayIntentBits, Guild, GuildMember, TextChannel, EmbedBuilder, MessageCreateOptions, APIEmbed, DiscordAPIError, Role, PartialGuildMember } from 'discord.js';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -123,18 +123,23 @@ export class BotService {
    * @private
    */
   private setupEventHandlers() {
+    // Ready event
     this.client.on('ready', async () => {
-      console.log('Bot is ready');
-      if (this.readyResolve) {
-        this.readyResolve();
-      }
       try {
+        console.log('Bot is ready');
+        if (this.readyResolve) {
+          this.readyResolve();
+        }
         await this.initializeGuilds();
       } catch (error) {
-        console.error('Error initializing guilds:', error);
+        console.error('Error in ready event handler:', error);
+        if (this.readyReject) {
+          this.readyReject(error as Error);
+        }
       }
     });
 
+    // Error event
     this.client.on('error', (error) => {
       console.error('Bot encountered an error:', error);
       if (this.readyReject) {
@@ -142,35 +147,69 @@ export class BotService {
       }
     });
 
+    // Warn event
     this.client.on('warn', (message) => {
       console.warn('[WARN]', message);
     });
 
+    // Channel update event
     this.client.on('channelUpdate', (oldChannel, newChannel) => {
-      // Handle channel updates
-      if (oldChannel && newChannel && 'guild' in newChannel) {
-        // Update channel cache if needed
-        const guildId = newChannel.guild.id;
-        if (guildId) {
-          this.guildCache.delete(guildId);
+      try {
+        if (!oldChannel || !newChannel) {
+          console.warn('Received channelUpdate with undefined channels');
+          return;
         }
+
+        if (!('guild' in newChannel)) {
+          console.warn('Received channelUpdate for non-guild channel');
+          return;
+        }
+
+        const guildId = newChannel.guild.id;
+        if (!guildId) {
+          console.warn('Received channelUpdate with invalid guild ID');
+          return;
+        }
+
+        this.guildCache.delete(guildId);
+      } catch (error) {
+        console.error('Error in channelUpdate handler:', error);
       }
     });
 
+    // Guild member update event
     this.client.on('guildMemberUpdate', (oldMember, newMember) => {
       try {
-        // Only proceed if both members are defined and have a guild
-        if (oldMember?.guild && newMember?.guild) {
-          const guildId = newMember.guild.id;
-          // Invalidate both guild and member caches
-          this.guildCache.delete(guildId);
-          this.memberCache.delete(guildId);
+        if (!oldMember || !newMember) {
+          console.warn('Received guildMemberUpdate with undefined members');
+          return;
         }
+
+        if (!oldMember.guild || !newMember.guild) {
+          console.warn('Received guildMemberUpdate with members missing guild property');
+          return;
+        }
+
+        const guildId = newMember.guild.id;
+        if (!guildId) {
+          console.warn('Received guildMemberUpdate with invalid guild ID');
+          return;
+        }
+
+        // Invalidate both guild and member caches
+        this.guildCache.delete(guildId);
+        this.memberCache.delete(guildId);
+
+        // Process role updates if needed
+        this.processGuildMemberUpdate(oldMember, newMember).catch(error => {
+          console.error('Error processing guild member update:', error);
+        });
       } catch (error) {
         console.error('Error in guildMemberUpdate handler:', error);
       }
     });
 
+    // Shard events
     this.client.on('shardReady', (shardId) => {
       console.log(`Shard ${shardId} is ready`);
       this.sendHeartbeat();
@@ -745,6 +784,55 @@ export class BotService {
    */
   public getShardCount(): number {
     return this.client.shard?.count || 1;
+  }
+
+  /**
+   * Processes a guild member update event
+   * @private
+   * @param {GuildMember | PartialGuildMember} oldMember - The member before the update
+   * @param {GuildMember | PartialGuildMember} newMember - The member after the update
+   * @returns {Promise<void>}
+   */
+  private async processGuildMemberUpdate(
+    oldMember: GuildMember | PartialGuildMember,
+    newMember: GuildMember | PartialGuildMember
+  ): Promise<void> {
+    try {
+      // Ensure we have full GuildMember objects
+      if (!('guild' in newMember) || !('roles' in newMember)) {
+        console.warn('Received partial guild member update, skipping role processing');
+        return;
+      }
+
+      const guildId = newMember.guild.id;
+      const config = await prisma.guildConfig.findUnique({
+        where: { guildId }
+      });
+
+      if (!config) {
+        return;
+      }
+
+      const role = newMember.guild.roles.cache.get(config.roleId);
+      if (!role) {
+        return;
+      }
+
+      const memberData = await this.fetchMemberGuildData(guildId);
+      const currentGuildId = memberData.get(newMember.id)?.user?.primary_guild?.identity_guild_id;
+      
+      const shouldHaveRole = currentGuildId === guildId;
+      const hasRole = newMember.roles.cache.has(config.roleId);
+
+      if (shouldHaveRole && !hasRole) {
+        await newMember.roles.add(config.roleId);
+      } else if (!shouldHaveRole && hasRole) {
+        await newMember.roles.remove(config.roleId);
+      }
+    } catch (error) {
+      console.error('Error processing guild member update:', error);
+      throw error;
+    }
   }
 }
 
