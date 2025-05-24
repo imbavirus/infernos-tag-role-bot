@@ -84,7 +84,7 @@ export default function NavBar({}: NavBarProps) {
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center gap-2 bg-dark/50 px-2 py-1.5 rounded-lg border border-lime/20 hover:border-lime/40 transition-all duration-300"
+                    className="flex items-center gap-2 bg-dark/50 px-2 py-1.5 rounded-lg border border-lime/20 hover:border-lime/40 transition-all duration-300 shadow-lg shadow-lime/25 hover:shadow-lime/40"
                   >
                     {session.user.image ? (
                       <Image
