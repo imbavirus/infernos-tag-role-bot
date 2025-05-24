@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { botService } from '@/services/bot';
-import nacl from 'tweetnacl';
+import tweetnacl from 'tweetnacl';
 import { logger } from '@/utils/logger';
 
 // Discord interaction types
@@ -265,11 +265,25 @@ function verifyDiscordRequest(
 
     try {
       logger.debug('Attempting nacl verification...');
-      const isVerified = nacl.sign.verify(
-        messageBuffer,
-        signatureBuffer,
-        publicKeyBuffer
+      // Convert buffers to Uint8Arrays for tweetnacl
+      const messageUint8 = new Uint8Array(messageBuffer);
+      const signatureUint8 = new Uint8Array(signatureBuffer);
+      const publicKeyUint8 = new Uint8Array(publicKeyBuffer);
+
+      logger.debug('Converted to Uint8Arrays:', {
+        messageLength: messageUint8.length,
+        signatureLength: signatureUint8.length,
+        publicKeyLength: publicKeyUint8.length
+      });
+
+      // Use the low-level API to verify the signature
+      // @ts-ignore - tweetnacl types are incorrect
+      const isVerified = tweetnacl.sign.detached.verify(
+        messageUint8,
+        signatureUint8,
+        publicKeyUint8
       );
+
       logger.debug('Nacl verification result:', { isVerified });
       return isVerified;
     } catch (verifyError) {
