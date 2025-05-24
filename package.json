@@ -27,6 +27,7 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-icons": "^5.5.0",
+    "tweetnacl": "^1.0.3",
     "zlib-sync": "^0.1.10"
   },
   "devDependencies": {

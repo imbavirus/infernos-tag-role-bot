@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { botService } from '@/services/bot';
-import crypto from 'crypto';
+import nacl from 'tweetnacl';
 import { logger } from '@/utils/logger';
 
 // Discord interaction types
@@ -176,21 +176,32 @@ function verifyDiscordRequest(
     });
 
     const message = timestamp + body;
-    const signatureBuffer = Buffer.from(signature, 'hex');
     const messageBuffer = Buffer.from(message, 'utf8');
+    const signatureBuffer = Buffer.from(signature, 'hex');
     const publicKeyBuffer = Buffer.from(publicKey, 'hex');
 
-    const result = crypto.verify(
-      'ed25519',
-      publicKeyBuffer,
+    const isVerified = nacl.sign.verify(
+      messageBuffer,
       signatureBuffer,
-      messageBuffer
+      publicKeyBuffer
     );
 
-    logger.debug('Verification result:', result);
-    return result;
+    logger.debug('Verification result:', isVerified);
+    return isVerified;
   } catch (error) {
     logger.error('Error verifying Discord request:', error);
     return false;
   }
+}
+
+// Add OPTIONS handler for CORS
+export async function OPTIONS(request: Request) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, X-Signature-Ed25519, X-Signature-Timestamp'
+    }
+  });
 } 
