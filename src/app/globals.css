@@ -1,3 +1,4 @@
+@import "tailwindcss";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,7 +6,7 @@
 @layer utilities {
   .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: theme('colors.lime.DEFAULT') theme('colors.dark.DEFAULT');
+    scrollbar-color: var(--color-lime-DEFAULT) var(--color-dark-DEFAULT);
   }
 
   .custom-scrollbar::-webkit-scrollbar {
@@ -13,18 +14,18 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: theme('colors.dark.DEFAULT');
+    background: var(--color-dark-DEFAULT);
     border-radius: 4px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: theme('colors.lime.DEFAULT');
+    background-color: var(--color-lime-DEFAULT);
     border-radius: 4px;
-    border: 2px solid theme('colors.dark.DEFAULT');
+    border: 2px solid var(--color-dark-DEFAULT);
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: theme('colors.lime.light');
+    background-color: var(--color-lime-light);
   }
 }
 
