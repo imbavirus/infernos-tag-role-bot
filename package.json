@@ -19,7 +19,6 @@
     "@discordjs/opus": "^0.10.0",
     "@discordjs/voice": "^0.18.0",
     "@prisma/client": "^6.8.2",
-    "@tailwindcss/postcss": "^4.1.7",
     "discord.js": "14.19.3",
     "libsodium-wrappers": "^0.7.15",
     "next": "15.3.2",
@@ -35,11 +34,11 @@
     "@types/node": "^22.15.21",
     "@types/react": "^19.1.5",
     "@types/react-dom": "^19.1.5",
-    "autoprefixer": "^10.4.17",
+    "autoprefixer": "^10.4.21",
     "ignore-loader": "^0.1.2",
     "node-loader": "^2.1.0",
-    "postcss": "^8.4.35",
-    "tailwindcss": "4.1.7",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.1.7",
     "typescript": "5.8.3"
   }
 }
