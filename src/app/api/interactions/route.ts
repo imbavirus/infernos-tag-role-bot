@@ -2,13 +2,30 @@ import { NextResponse } from 'next/server';
 import { botService } from '@/services/bot';
 import crypto from 'crypto';
 
+// Discord interaction types
+interface DiscordInteraction {
+  type: number;
+  token: string;
+  id: string;
+  application_id: string;
+  data?: {
+    name: string;
+    type: number;
+    options?: Array<{
+      name: string;
+      type: number;
+      value: string | number | boolean;
+    }>;
+  };
+}
+
 export async function POST(request: Request) {
   try {
     // Get the raw body for signature verification
     const rawBody = await request.text();
     console.log('Received raw body:', rawBody);
     
-    const body = JSON.parse(rawBody);
+    const body = JSON.parse(rawBody) as DiscordInteraction;
     console.log('Parsed body:', body);
     
     // Verify the request is from Discord
@@ -45,7 +62,7 @@ export async function POST(request: Request) {
     // Handle different interaction types
     switch (body.type) {
       case 2: // APPLICATION_COMMAND
-        console.log('Received application command');
+        console.log('Received application command:', body.data?.name);
         return NextResponse.json({ 
           type: 4, 
           data: { 
@@ -76,6 +93,17 @@ function verifyDiscordRequest(
       return false;
     }
 
+    // Validate input lengths
+    if (signature.length !== 128) {
+      console.error('Invalid signature length:', signature.length);
+      return false;
+    }
+
+    if (publicKey.length !== 64) {
+      console.error('Invalid public key length:', publicKey.length);
+      return false;
+    }
+
     console.log('Verifying request with:', {
       publicKeyLength: publicKey.length,
       signatureLength: signature.length,
@@ -86,10 +114,11 @@ function verifyDiscordRequest(
     const message = timestamp + body;
     const signatureBuffer = Buffer.from(signature, 'hex');
     const messageBuffer = Buffer.from(message, 'utf8');
+    const publicKeyBuffer = Buffer.from(publicKey, 'hex');
 
     const result = crypto.verify(
       'ed25519',
-      Buffer.from(publicKey, 'hex'),
+      publicKeyBuffer,
       signatureBuffer,
       messageBuffer
     );
