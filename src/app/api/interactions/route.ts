@@ -4,7 +4,9 @@ import crypto from 'crypto';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    // Get the raw body for signature verification
+    const rawBody = await request.text();
+    const body = JSON.parse(rawBody);
     
     // Verify the request is from Discord
     const signature = request.headers.get('x-signature-ed25519');
@@ -20,7 +22,6 @@ export async function POST(request: Request) {
     }
 
     // For other types, verify the signature
-    const rawBody = await request.text();
     const isValid = verifyDiscordRequest(rawBody, signature, timestamp);
     
     if (!isValid) {
