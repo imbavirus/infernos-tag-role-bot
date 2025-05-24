@@ -9,18 +9,18 @@ export default {
         extend: {
             colors: {
                 'discord': {
-                    DEFAULT: '#5865F2',
-                    'dark': '#4752C4',
+                    DEFAULT: 'oklch(55.4% 0.2 265.1)',
+                    'dark': 'oklch(48.2% 0.2 265.1)',
                 },
                 'lime': {
-                    'light': '#84cc16',
-                    'DEFAULT': '#65a30d',
-                    'dark': '#4d7c0f',
+                    'light': 'oklch(79.2% 0.209 151.711)',
+                    'DEFAULT': 'oklch(72.3% 0.219 149.579)',
+                    'dark': 'oklch(65.4% 0.229 147.447)',
                 },
                 'dark': {
-                    'lighter': '#1f2937',
-                    'DEFAULT': '#111827',
-                    'darker': '#0f172a',
+                    'lighter': 'oklch(37.3% 0.034 259.733)',
+                    'DEFAULT': 'oklch(27.8% 0.033 256.848)',
+                    'darker': 'oklch(21% 0.034 264.665)',
                 }
             },
             animation: {
