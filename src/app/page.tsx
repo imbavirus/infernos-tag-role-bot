@@ -1,3 +1,9 @@
+/**
+ * @file page.tsx
+ * @description Landing page component for the Infernos Tag Role Bot
+ * @module app/page
+ */
+
 'use client';
 
 import React from 'react';
@@ -6,11 +12,11 @@ import Link from 'next/link';
 import { FaTag, FaUsers, FaShieldAlt } from 'react-icons/fa';
 import AddToDiscordButton from '@/components/AddToDiscordButton';
 
-const NEXT_PUBLIC_DISCORD_CLIENT_ID = process.env.NEXT_PUBLIC_NEXT_PUBLIC_DISCORD_CLIENT_ID;
-
+/**
+ * Home page component that displays the landing page with features and how it works sections
+ * @returns {JSX.Element} The landing page
+ */
 export default function Home() {
-  const { data: session } = useSession();
-
   return (
     <div className="flex flex-col min-h-screen bg-dark-darker">
       {/* Hero Section */}

@@ -10,6 +10,7 @@ import './globals.css';
 import { Providers } from './providers';
 import '@/lib/server-init';
 import NavBar from './components/NavBar';
+import { Toaster } from 'react-hot-toast';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -44,6 +45,7 @@ export default function RootLayout({
           <NavBar />
           {children}
         </Providers>
+        <Toaster position="top-right" />
       </body>
     </html>
   );

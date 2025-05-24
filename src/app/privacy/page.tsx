@@ -1,8 +1,18 @@
+/**
+ * @file page.tsx
+ * @description Privacy policy page component
+ * @module app/privacy/page
+ */
+
 'use client';
 
 import React from 'react';
 import Link from 'next/link';
 
+/**
+ * Privacy policy page component that displays the bot's privacy policy
+ * @returns {JSX.Element} The privacy policy page
+ */
 export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-dark-darker py-12">
