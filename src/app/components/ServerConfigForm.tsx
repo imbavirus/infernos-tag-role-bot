@@ -331,6 +331,9 @@ export default function ServerConfigForm({ server, hasTagsFeature = false }: Ser
                 </option>
               ))}
             </select>
+            <p className="mt-2 text-sm text-gray-400">
+              Note: The bot's highest role must be positioned higher than the selected role in your server's role hierarchy.
+            </p>
           </div>
 
           <div>

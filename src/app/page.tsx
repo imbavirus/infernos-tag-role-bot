@@ -93,7 +93,7 @@ export default function Home() {
               </div>
               <h3 className="text-2xl font-semibold mb-4 text-lime-light">Configure Settings</h3>
               <p className="text-gray-400 leading-relaxed">
-                Select a role to manage and a channel for logging role changes
+                Select a role to manage and a channel for logging role changes. Make sure the bot's highest role is positioned higher than the selected role in your server's role hierarchy.
               </p>
             </div>
             <div className="bg-gradient-to-br from-dark-lighter to-dark p-8 rounded-2xl border border-lime/20 hover:border-lime/50 transition-all duration-300 hover:shadow-xl hover:shadow-lime/10 transform hover:-translate-y-1">
