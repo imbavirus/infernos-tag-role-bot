@@ -1,20 +1,5 @@
 @import "tailwindcss";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer theme {
-  :root {
-    --color-discord: oklch(55.4% 0.2 265.1);
-    --color-discord-dark: oklch(48.2% 0.2 265.1);
-    --color-lime-light: oklch(79.2% 0.209 151.711);
-    --color-lime: oklch(72.3% 0.219 149.579);
-    --color-lime-dark: oklch(65.4% 0.229 147.447);
-    --color-dark-lighter: oklch(37.3% 0.034 259.733);
-    --color-dark: oklch(27.8% 0.033 256.848);
-    --color-dark-darker: oklch(21% 0.034 264.665);
-  }
-}
+@config "../../tailwind.config.js";
 
 @layer utilities {
   .custom-scrollbar {
@@ -46,6 +31,14 @@
   --foreground-rgb: 255, 255, 255;
   --background-start-rgb: 0, 0, 0;
   --background-end-rgb: 0, 0, 0;
+  --color-discord: oklch(55.4% 0.2 265.1);
+  --color-discord-dark: oklch(48.2% 0.2 265.1);
+  --color-lime-light: oklch(79.2% 0.209 151.711);
+  --color-lime: oklch(72.3% 0.219 149.579);
+  --color-lime-dark: oklch(65.4% 0.229 147.447);
+  --color-dark-lighter: oklch(37.3% 0.034 259.733);
+  --color-dark: oklch(27.8% 0.033 256.848);
+  --color-dark-darker: oklch(21% 0.034 264.665);
 }
 
 body {
@@ -64,16 +57,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: theme('colors.dark.DEFAULT');
+  background: var(--color-dark);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: theme('colors.lime.DEFAULT');
+  background: var(--color-lime);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: theme('colors.lime.light');
+  background: var(--color-lime-light);
 }
 
 /* Ensure proper spacing and layout */
