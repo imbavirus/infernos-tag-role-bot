@@ -41,12 +41,12 @@ export async function POST(request: Request) {
     }
 
     const data = await request.json();
-    const { guildId, representorsRoleId, logChannelId } = data;
+    const { guildId, roleId, logChannelId } = data;
 
     // Validate required fields
-    if (!guildId || !representorsRoleId) {
+    if (!guildId || !roleId) {
       return NextResponse.json(
-        { error: 'Guild ID and Representors Role ID are required' },
+        { error: 'Guild ID and Role ID are required' },
         { status: 400 }
       );
     }
@@ -55,12 +55,12 @@ export async function POST(request: Request) {
     const config = await prisma.guildConfig.upsert({
       where: { guildId },
       update: {
-        representorsRoleId,
+        roleId,
         logChannelId: logChannelId || null,
       },
       create: {
         guildId,
-        representorsRoleId,
+        roleId,
         logChannelId: logChannelId || null,
       },
     });

@@ -127,7 +127,7 @@ export default function DashboardPage({}: DashboardPageProps) {
             
             // If we still get a 401 after refresh, redirect to sign in
             setTimeout(() => {
-              if (status === 'unauthenticated' as const) {
+              if (status === 'unauthenticated' as 'loading' | 'authenticated' | 'unauthenticated') {
                 router.replace('/auth/signin');
               }
             }, 1000);
@@ -175,10 +175,27 @@ export default function DashboardPage({}: DashboardPageProps) {
         setIsLoading(false);
         setError('Request timed out. Please try again.');
       }
-    }, 30000); // 30 second timeout
+    }, 15000); // Reduced from 30s to 15s to match bot initialization timeout
 
     return () => clearTimeout(loadingTimeout);
   }, [isLoading]);
+
+  // Add error boundary effect
+  useEffect(() => {
+    const handleError = (error: Error) => {
+      console.error('Unhandled error:', error);
+      setIsLoading(false);
+      setError('An unexpected error occurred. Please try again.');
+    };
+
+    window.addEventListener('error', (event) => handleError(event.error));
+    window.addEventListener('unhandledrejection', (event) => handleError(event.reason));
+
+    return () => {
+      window.removeEventListener('error', (event) => handleError(event.error));
+      window.removeEventListener('unhandledrejection', (event) => handleError(event.reason));
+    };
+  }, []);
 
   // Fetch roles when server is selected
   useEffect(() => {
@@ -197,6 +214,8 @@ export default function DashboardPage({}: DashboardPageProps) {
       } catch (error) {
         console.error('Error fetching roles:', error);
         setError(error instanceof Error ? error.message : 'Failed to fetch roles');
+        // Ensure loading state is cleared on error
+        setIsLoading(false);
       }
     };
 
@@ -262,7 +281,15 @@ export default function DashboardPage({}: DashboardPageProps) {
               onClick={() => setIsServerDropdownOpen(!isServerDropdownOpen)}
               className="flex items-center gap-3 bg-dark px-4 py-3 rounded-lg border border-lime/20 hover:border-lime/40 transition-all duration-300 w-full"
             >
-              {selectedServer ? (
+              {isLoading ? (
+                <>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-lime to-lime-dark flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-lime-light border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                  <span className="text-lime-light font-semibold">Loading servers...</span>
+                  <FaChevronDown className={`text-lime-light ml-auto transition-transform duration-300 ${isServerDropdownOpen ? 'rotate-180' : ''}`} />
+                </>
+              ) : selectedServer ? (
                 <>
                   {selectedServer.icon ? (
                     <img
@@ -297,48 +324,59 @@ export default function DashboardPage({}: DashboardPageProps) {
 
             {isServerDropdownOpen && (
               <div className="absolute top-full left-0 mt-2 w-full bg-dark rounded-lg border border-lime/20 shadow-lg shadow-lime/25 overflow-hidden z-50 max-h-[300px] overflow-y-auto custom-scrollbar">
-                {servers
-                  .sort((a, b) => {
-                    // Sort servers with bot to the top
-                    if (a.hasBot && !b.hasBot) return -1;
-                    if (!a.hasBot && b.hasBot) return 1;
-                    return a.name.localeCompare(b.name);
-                  })
-                  .map((server) => (
-                    <button
-                      key={server.id}
-                      onClick={() => {
-                        setSelectedServer(server);
-                        setIsServerDropdownOpen(false);
-                        // Update URL with guild_id
-                        router.push(`/dashboard?guild_id=${server.id}`, { scroll: false });
-                      }}
-                      className={`flex items-center gap-3 w-full px-4 py-3 hover:bg-dark-lighter transition-colors duration-200 ${
-                        !server.hasBot ? 'opacity-50' : ''
-                      }`}
-                    >
-                      {server.icon ? (
-                        <img
-                          src={`https://cdn.discordapp.com/icons/${server.id}/${server.icon}.png`}
-                          alt={server.name}
-                          className="w-8 h-8 rounded-full"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-lime to-lime-dark flex items-center justify-center">
-                          <FaServer className="text-lime-light" />
+                {isLoading ? (
+                  <div className="p-4 text-center">
+                    <div className="w-6 h-6 border-2 border-lime-light border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                    <p className="text-lime-light text-sm">Loading servers...</p>
+                  </div>
+                ) : servers.length === 0 ? (
+                  <div className="p-4 text-center">
+                    <p className="text-gray-400">No servers found</p>
+                  </div>
+                ) : (
+                  servers
+                    .sort((a, b) => {
+                      // Sort servers with bot to the top
+                      if (a.hasBot && !b.hasBot) return -1;
+                      if (!a.hasBot && b.hasBot) return 1;
+                      return a.name.localeCompare(b.name);
+                    })
+                    .map((server) => (
+                      <button
+                        key={server.id}
+                        onClick={() => {
+                          setSelectedServer(server);
+                          setIsServerDropdownOpen(false);
+                          // Update URL with guild_id
+                          router.push(`/dashboard?guild_id=${server.id}`, { scroll: false });
+                        }}
+                        className={`flex items-center gap-3 w-full px-4 py-3 hover:bg-dark-lighter transition-colors duration-200 ${
+                          !server.hasBot ? 'opacity-50' : ''
+                        }`}
+                      >
+                        {server.icon ? (
+                          <img
+                            src={`https://cdn.discordapp.com/icons/${server.id}/${server.icon}.png`}
+                            alt={server.name}
+                            className="w-8 h-8 rounded-full"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-lime to-lime-dark flex items-center justify-center">
+                            <FaServer className="text-lime-light" />
+                          </div>
+                        )}
+                        <span className="text-lime-light">{server.name}</span>
+                        <div className="ml-auto flex gap-2">
+                          {!server.hasBot && (
+                            <span className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded">Bot not present</span>
+                          )}
+                          {server.hasBot && !server.hasTagsFeature && (
+                            <span className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded">No Server Tag</span>
+                          )}
                         </div>
-                      )}
-                      <span className="text-lime-light">{server.name}</span>
-                      <div className="ml-auto flex gap-2">
-                        {!server.hasBot && (
-                          <span className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded">Bot not present</span>
-                        )}
-                        {server.hasBot && !server.hasTagsFeature && (
-                          <span className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded">No Server Tag</span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    ))
+                )}
               </div>
             )}
           </div>

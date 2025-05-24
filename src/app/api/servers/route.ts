@@ -51,14 +51,14 @@ export async function GET() {
       await Promise.race([
         ensureBotStarted(),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Bot initialization timed out')), 15000)
+          setTimeout(() => reject(new Error('Bot initialization timed out')), 10000)
         )
       ]);
       
       // Wait for bot to be ready with exponential backoff
       let retries = 0;
-      const maxRetries = 5;
-      const baseDelay = 1000; // 1 second
+      const maxRetries = 3;
+      const baseDelay = 500;
 
       while (!botService.isLoggedIn() && retries < maxRetries) {
         const delay = baseDelay * Math.pow(2, retries);

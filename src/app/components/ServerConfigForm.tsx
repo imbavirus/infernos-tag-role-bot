@@ -123,12 +123,20 @@ export default function ServerConfigForm({ server, hasTagsFeature = false }: Ser
   };
 
   useEffect(() => {
-    if (server.id) {
+    if (server.id && server.hasBot && hasTagsFeature) {
       fetchRoles();
       fetchChannels();
       fetchConfig();
+    } else {
+      // Reset states when server doesn't meet requirements
+      setRoles([]);
+      setChannels([]);
+      setSelectedRole('');
+      setSelectedChannel('');
+      setIsLoadingRoles(false);
+      setIsLoadingChannels(false);
     }
-  }, [server.id]);
+  }, [server.id, server.hasBot, hasTagsFeature]);
 
   /**
    * Fetches the roles for the server
@@ -140,12 +148,26 @@ export default function ServerConfigForm({ server, hasTagsFeature = false }: Ser
     try {
       setIsLoadingRoles(true);
       const response = await fetch(`/api/servers/${server.id}/roles`);
-      if (!response.ok) throw new Error('Failed to fetch roles');
+      if (!response.ok) {
+        const data = await response.json();
+        // Only set error for unexpected errors
+        if (response.status !== 404 && response.status !== 503) {
+          throw new Error(data.error || 'Failed to fetch roles');
+        }
+        // For 404 or 503, just set empty roles array
+        setRoles([]);
+        return;
+      }
       const data = await response.json();
       setRoles(data);
     } catch (error) {
       console.error('Error fetching roles:', error);
-      setError('Failed to load roles');
+      // Only set error for unexpected errors
+      if (!(error instanceof Error && 
+          (error.message.includes('Failed to fetch roles') || 
+           error.message.includes('Bot is not ready')))) {
+        setError('Failed to load roles');
+      }
     } finally {
       setIsLoadingRoles(false);
     }
@@ -181,14 +203,30 @@ export default function ServerConfigForm({ server, hasTagsFeature = false }: Ser
   const fetchConfig = async () => {
     try {
       const response = await fetch(`/api/guilds/${server.id}`);
-      if (!response.ok) throw new Error('Failed to fetch configuration');
-      const data = await response.json();
-      if (data) {
-        setSelectedRole(data.representorsRoleId || '');
-        setSelectedChannel(data.logChannelId || '');
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Configuration doesn't exist yet, which is fine
+          setSelectedRole('');
+          setSelectedChannel('');
+          return;
+        }
+        throw new Error('Failed to fetch configuration');
       }
+      const data = await response.json();
+      // Handle both null and undefined cases
+      if (data === null || data === undefined) {
+        setSelectedRole('');
+        setSelectedChannel('');
+        return;
+      }
+      setSelectedRole(data.roleId || '');
+      setSelectedChannel(data.logChannelId || '');
     } catch (error) {
       console.error('Error fetching configuration:', error);
+      // Don't set error state for missing configuration
+      if (!(error instanceof Error && error.message === 'Failed to fetch configuration')) {
+        setError('Failed to load configuration. Please try again.');
+      }
     }
   };
 
@@ -213,7 +251,7 @@ export default function ServerConfigForm({ server, hasTagsFeature = false }: Ser
         },
         body: JSON.stringify({
           guildId: server.id,
-          representorsRoleId: selectedRole,
+          roleId: selectedRole,
           logChannelId: selectedChannel || null,
         }),
       });
@@ -242,7 +280,7 @@ export default function ServerConfigForm({ server, hasTagsFeature = false }: Ser
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {!hasTagsFeature && (
+      {server.hasBot && !hasTagsFeature && (
         <div className="text-yellow-400 text-sm bg-yellow-900/20 border border-yellow-900/40 rounded-lg p-3">
           This server does not have the Server Tags feature enabled. Please enable it in your server settings to use this bot.
         </div>
@@ -343,9 +381,9 @@ export default function ServerConfigForm({ server, hasTagsFeature = false }: Ser
 
           <button
             type="submit"
-            disabled={loading || !selectedRole}
+            disabled={loading || !selectedRole || isLoadingRoles || isLoadingChannels}
             className={`w-full flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-medium transition-all duration-300
-              ${loading || !selectedRole
+              ${loading || !selectedRole || isLoadingRoles || isLoadingChannels
                 ? 'bg-dark-lighter text-gray-500 cursor-not-allowed'
                 : 'bg-gradient-to-r from-lime to-lime-dark hover:from-lime-light hover:to-lime text-dark-darker shadow-lg shadow-lime/25 hover:shadow-lime/40 hover:scale-105'
               }`}

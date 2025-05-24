@@ -10,7 +10,7 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.accessToken) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -40,25 +40,25 @@ export async function POST(
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.accessToken) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const awaitedParams = await Promise.resolve(params);
     const guildId = awaitedParams.guildId;
     const body = await request.json();
-    const { representorsRoleId, logChannelId } = body;
+    const { roleId, logChannelId } = body;
 
     // Update or create guild configuration
     const config = await prisma.guildConfig.upsert({
       where: { guildId },
       update: {
-        representorsRoleId,
+        roleId,
         logChannelId
       },
       create: {
         guildId,
-        representorsRoleId,
+        roleId,
         logChannelId
       }
     });

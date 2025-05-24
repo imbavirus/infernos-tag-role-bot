@@ -67,6 +67,9 @@ class BotService {
   } | null = null;
   private readonly TOKEN_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   private isInitializing: boolean = false;
+  private lastHeartbeat: number = 0;
+  private readonly HEARTBEAT_INTERVAL = 60000; // 1 minute
+  private readonly HEARTBEAT_DEBOUNCE = 5000; // 5 seconds
 
   /**
    * Creates a new instance of BotService
@@ -148,8 +151,8 @@ class BotService {
 
     // Start periodic checks
     setInterval(() => this.checkGuilds(), 5000);
-    // Start heartbeat
-    setInterval(() => this.sendHeartbeat(), 30000);
+    // Start heartbeat with longer interval
+    setInterval(() => this.sendHeartbeat(), this.HEARTBEAT_INTERVAL);
   }
 
   /**
@@ -364,6 +367,13 @@ class BotService {
    * @returns {Promise<void>}
    */
   private async sendHeartbeat() {
+    const now = Date.now();
+    // Prevent sending heartbeats too frequently
+    if (now - this.lastHeartbeat < this.HEARTBEAT_DEBOUNCE) {
+      return;
+    }
+    this.lastHeartbeat = now;
+
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
       const response = await fetch(`${baseUrl}/api/heartbeat`, {

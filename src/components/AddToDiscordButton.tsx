@@ -73,7 +73,20 @@ export default function AddToDiscordButton({ className = '', size = 'md', guildI
         prompt: 'consent',
         access_type: 'offline',
         response_type: 'code'
-      }, guildId ? { guild_id: guildId } : undefined);
+      }, guildId ? {
+        scope: 'identify email guilds bot applications.commands',
+        permissions: '2415922176',
+        prompt: 'consent',
+        access_type: 'offline',
+        response_type: 'code',
+        guild_id: guildId,
+      } : {        
+        scope: 'identify email guilds bot applications.commands',
+        permissions: '2415922176',
+        prompt: 'consent',
+        access_type: 'offline',
+        response_type: 'code'
+      });
     } catch (error) {
       console.error('Error initiating OAuth flow:', error);
     }
