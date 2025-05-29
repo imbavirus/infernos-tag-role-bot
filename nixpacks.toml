@@ -13,3 +13,6 @@ cmd = 'npm run start'
 [variables]
 NODE_ENV = 'production'
 PORT = '3000' 
+
+[build]
+  run = "nix-shell -p gcc make zlib.dev"
